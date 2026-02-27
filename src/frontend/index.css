@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    /* OpenFrame Education — Blue + White + Orange EdTech palette */
+    /* Primary Blue: rich vivid blue */
+    --brand-blue: 0.45 0.18 262;
+    --brand-blue-dark: 0.33 0.17 265;
+    --brand-blue-light: 0.62 0.14 255;
+    --brand-orange: 0.68 0.19 50;
+    --brand-orange-dark: 0.58 0.2 45;
+    --brand-orange-light: 0.82 0.15 60;
+
+    /* Semantic tokens */
+    --background: 0.99 0 0;
+    --foreground: 0.18 0.02 265;
+    --card: 1 0 0;
+    --card-foreground: 0.18 0.02 265;
+    --popover: 1 0 0;
+    --popover-foreground: 0.18 0.02 265;
+    --primary: 0.45 0.18 262;
+    --primary-foreground: 0.99 0 0;
+    --secondary: 0.95 0.03 255;
+    --secondary-foreground: 0.33 0.17 265;
+    --muted: 0.96 0.01 240;
+    --muted-foreground: 0.52 0.04 255;
+    --accent: 0.68 0.19 50;
+    --accent-foreground: 0.99 0 0;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.9 0.02 255;
+    --input: 0.9 0.02 255;
+    --ring: 0.45 0.18 262;
+    --chart-1: 0.45 0.18 262;
+    --chart-2: 0.68 0.19 50;
+    --chart-3: 0.55 0.15 165;
+    --chart-4: 0.72 0.18 320;
+    --chart-5: 0.65 0.2 15;
+    --sidebar: 0.18 0.04 265;
+    --sidebar-foreground: 0.95 0.01 255;
+    --sidebar-primary: 0.68 0.19 50;
+    --sidebar-primary-foreground: 0.99 0 0;
+    --sidebar-accent: 0.28 0.06 265;
+    --sidebar-accent-foreground: 0.95 0.01 255;
+    --sidebar-border: 0.28 0.06 265;
+    --sidebar-ring: 0.55 0.12 255;
+  }
+
+  .dark {
+    --background: 0.14 0.03 265;
+    --foreground: 0.97 0.01 240;
+    --card: 0.19 0.04 265;
+    --card-foreground: 0.97 0.01 240;
+    --popover: 0.22 0.04 265;
+    --popover-foreground: 0.97 0.01 240;
+    --primary: 0.62 0.14 255;
+    --primary-foreground: 0.12 0.04 265;
+    --secondary: 0.25 0.05 265;
+    --secondary-foreground: 0.9 0.02 255;
+    --muted: 0.22 0.04 265;
+    --muted-foreground: 0.65 0.04 255;
+    --accent: 0.72 0.2 50;
+    --accent-foreground: 0.12 0.04 265;
+    --destructive: 0.704 0.191 22.216;
+    --destructive-foreground: 0.985 0 0;
+    --border: 1 0 0 / 10%;
+    --input: 1 0 0 / 15%;
+    --ring: 0.62 0.14 255;
+    --chart-1: 0.62 0.14 255;
+    --chart-2: 0.72 0.2 50;
+    --chart-3: 0.55 0.15 165;
+    --chart-4: 0.72 0.18 320;
+    --chart-5: 0.65 0.2 15;
+    --sidebar: 0.14 0.04 265;
+    --sidebar-foreground: 0.95 0.01 255;
+    --sidebar-primary: 0.68 0.19 50;
+    --sidebar-primary-foreground: 0.99 0 0;
+    --sidebar-accent: 0.22 0.04 265;
+    --sidebar-accent-foreground: 0.95 0.01 255;
+    --sidebar-border: 1 0 0 / 10%;
+    --sidebar-ring: 0.55 0.12 255;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', 'Outfit', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .brand-gradient {
+    background: linear-gradient(135deg, oklch(0.45 0.18 262), oklch(0.33 0.17 265));
+  }
+  .orange-gradient {
+    background: linear-gradient(135deg, oklch(0.68 0.19 50), oklch(0.58 0.2 45));
+  }
+  .hero-gradient {
+    background: linear-gradient(135deg, oklch(0.28 0.12 265 / 0.92), oklch(0.45 0.18 262 / 0.85));
+  }
+  .section-blue-bg {
+    background: linear-gradient(180deg, oklch(0.96 0.03 255), oklch(0.99 0 0));
+  }
+  .text-brand-blue {
+    color: oklch(0.45 0.18 262);
+  }
+  .text-brand-orange {
+    color: oklch(0.68 0.19 50);
+  }
+  .bg-brand-blue {
+    background-color: oklch(0.45 0.18 262);
+  }
+  .bg-brand-blue-dark {
+    background-color: oklch(0.33 0.17 265);
+  }
+  .bg-brand-orange {
+    background-color: oklch(0.68 0.19 50);
+  }
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+  .dashboard-sidebar {
+    background: oklch(0.18 0.04 265);
+    color: oklch(0.95 0.01 255);
+  }
+}
