@@ -403,48 +403,7 @@ export const SAMPLE_CERTIFICATES: Certificate[] = [
   },
 ];
 
-export const SAMPLE_REFERRALS: Referral[] = [
-  {
-    referralId: BigInt(1),
-    fieldExecId: BigInt(1),
-    studentId: BigInt(1),
-    commissionAmount: BigInt(250),
-    isPaid: true,
-    createdAt: BigInt(Date.now() - 2592000000),
-  },
-  {
-    referralId: BigInt(2),
-    fieldExecId: BigInt(1),
-    studentId: BigInt(2),
-    commissionAmount: BigInt(250),
-    isPaid: true,
-    createdAt: BigInt(Date.now() - 1728000000),
-  },
-  {
-    referralId: BigInt(3),
-    fieldExecId: BigInt(1),
-    studentId: BigInt(3),
-    commissionAmount: BigInt(250),
-    isPaid: false,
-    createdAt: BigInt(Date.now() - 864000000),
-  },
-  {
-    referralId: BigInt(4),
-    fieldExecId: BigInt(1),
-    studentId: BigInt(4),
-    commissionAmount: BigInt(250),
-    isPaid: false,
-    createdAt: BigInt(Date.now() - 432000000),
-  },
-  {
-    referralId: BigInt(5),
-    fieldExecId: BigInt(1),
-    studentId: BigInt(5),
-    commissionAmount: BigInt(250),
-    isPaid: false,
-    createdAt: BigInt(Date.now()),
-  },
-];
+export const SAMPLE_REFERRALS: Referral[] = [];
 
 export const SAMPLE_SCHEDULED_CLASSES: ScheduledClass[] = [
   {

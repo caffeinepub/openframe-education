@@ -50,11 +50,17 @@ const navItems = [
 
 const FIELD_EXEC_ID = BigInt(1);
 
+// Commission per plan: Basic=₹50, Standard=₹100, Premium=₹150
+const PLAN_COMMISSION: Record<number, number> = { 1: 50, 2: 100, 3: 150 };
+// Bonus: ₹100 for every 10 enrollments
+const BONUS_PER_10 = 100;
+
 export function FieldExecDashboard() {
   const [activeSection, setActiveSection] = useState("referrals");
   const [referralForm, setReferralForm] = useState({
     studentName: "",
     classLevel: "",
+    planId: "2",
     mobile: "",
     cityVillage: "",
   });
@@ -63,10 +69,11 @@ export function FieldExecDashboard() {
   const myReferrals = SAMPLE_REFERRALS.filter(
     (r) => r.fieldExecId === FIELD_EXEC_ID,
   );
-  const totalEarned = myReferrals.reduce(
-    (a, r) => a + Number(r.commissionAmount),
-    0,
-  );
+  const enrolledCount = myReferrals.filter((r) => r.isPaid).length;
+  const bonusEarned = Math.floor(enrolledCount / 10) * BONUS_PER_10;
+  const totalEarned =
+    myReferrals.reduce((a, r) => a + Number(r.commissionAmount), 0) +
+    bonusEarned;
   const paidEarned = myReferrals
     .filter((r) => r.isPaid)
     .reduce((a, r) => a + Number(r.commissionAmount), 0);
@@ -84,27 +91,40 @@ export function FieldExecDashboard() {
 
   const handleAddReferral = async (e: React.FormEvent) => {
     e.preventDefault();
+    const commission = PLAN_COMMISSION[Number(referralForm.planId)] ?? 100;
+    const planLabel =
+      referralForm.planId === "1"
+        ? "Basic"
+        : referralForm.planId === "3"
+          ? "Premium"
+          : "Standard";
     try {
       await createReferral.mutateAsync({
         referralId: BigInt(Date.now()),
         fieldExecId: FIELD_EXEC_ID,
         studentId: BigInt(Date.now()),
-        commissionAmount: BigInt(100),
+        commissionAmount: BigInt(commission),
         isPaid: false,
         createdAt: BigInt(Date.now()),
       });
-      toast.success(`Referral added! You'll earn ₹100 commission.`);
+      toast.success(
+        `Referral added! You'll earn ₹${commission} commission (${planLabel} Plan).`,
+      );
       setReferralForm({
         studentName: "",
         classLevel: "",
+        planId: "2",
         mobile: "",
         cityVillage: "",
       });
     } catch {
-      toast.success(`Referral recorded! You'll earn ₹100 commission.`);
+      toast.success(
+        `Referral recorded! You'll earn ₹${commission} commission (${planLabel} Plan).`,
+      );
       setReferralForm({
         studentName: "",
         classLevel: "",
+        planId: "2",
         mobile: "",
         cityVillage: "",
       });
@@ -129,7 +149,7 @@ export function FieldExecDashboard() {
               />
               <StatsCard
                 title="Enrolled"
-                value={myReferrals.filter((r) => r.isPaid).length}
+                value={enrolledCount}
                 icon="✅"
                 color="oklch(0.55 0.16 165)"
               />
@@ -241,22 +261,22 @@ export function FieldExecDashboard() {
                 {[
                   {
                     tier: "Basic Plan Referral",
-                    amount: "₹150/student",
+                    amount: "₹50/student",
                     color: "oklch(0.45 0.18 262)",
                   },
                   {
                     tier: "Standard Plan Referral",
-                    amount: "₹200/student",
+                    amount: "₹100/student",
                     color: "oklch(0.68 0.19 50)",
                   },
                   {
                     tier: "Premium Plan Referral",
-                    amount: "₹250/student",
+                    amount: "₹150/student",
                     color: "oklch(0.55 0.16 165)",
                   },
                   {
-                    tier: "Bonus: 5+ referrals/month",
-                    amount: "₹500 bonus",
+                    tier: "Bonus: every 10 enrollments",
+                    amount: `₹100 bonus (earned: ₹${bonusEarned})`,
                     color: "oklch(0.62 0.2 320)",
                   },
                 ].map(({ tier, amount, color }) => (
@@ -292,8 +312,13 @@ export function FieldExecDashboard() {
                   className="p-3 rounded-xl mb-5 text-sm"
                   style={{ background: "oklch(0.95 0.04 255)" }}
                 >
-                  💰 You'll earn <strong>₹100 commission</strong> when this
-                  student enrolls!
+                  💰 You'll earn{" "}
+                  <strong>
+                    ₹{PLAN_COMMISSION[Number(referralForm.planId)] ?? 100}{" "}
+                    commission
+                  </strong>{" "}
+                  when this student enrolls! (Basic ₹50 / Standard ₹100 /
+                  Premium ₹150 + ₹100 bonus every 10 enrollments)
                 </div>
                 <form onSubmit={handleAddReferral} className="space-y-4">
                   <div className="space-y-1.5">
@@ -327,6 +352,30 @@ export function FieldExecDashboard() {
                             {c}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Plan *</Label>
+                    <Select
+                      value={referralForm.planId}
+                      onValueChange={(v) =>
+                        setReferralForm((p) => ({ ...p, planId: v }))
+                      }
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Select plan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">
+                          Basic Plan – ₹50 commission
+                        </SelectItem>
+                        <SelectItem value="2">
+                          Standard Plan – ₹100 commission
+                        </SelectItem>
+                        <SelectItem value="3">
+                          Premium Plan – ₹150 commission
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -412,7 +461,7 @@ export function FieldExecDashboard() {
                         </span>
                       </TableCell>
                       <TableCell className="font-semibold text-green-700">
-                        ₹250
+                        ₹{PLAN_COMMISSION[Number(s.enrolledPlanId)] ?? 100}
                       </TableCell>
                     </TableRow>
                   ))}
