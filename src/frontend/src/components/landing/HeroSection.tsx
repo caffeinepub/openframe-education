@@ -40,22 +40,6 @@ export function HeroSection() {
 
       <div className="relative z-10 container mx-auto px-4 py-20">
         <div className="max-w-3xl">
-          {/* Pill badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-6 border"
-            style={{
-              background: "oklch(0.68 0.19 50 / 0.2)",
-              borderColor: "oklch(0.68 0.19 50 / 0.4)",
-              color: "oklch(0.92 0.1 55)",
-            }}
-          >
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            🇮🇳 Trusted by 10,000+ Students Across Karnataka
-          </motion.div>
-
           {/* Main Heading */}
           <motion.h1
             initial={{ opacity: 0, y: 24 }}
