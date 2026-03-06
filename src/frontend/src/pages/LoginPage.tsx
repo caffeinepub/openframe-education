@@ -1,17 +1,24 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, GraduationCap, Loader2, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  GraduationCap,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
+
+// Admin credentials (hashed for basic obfuscation)
+const ADMIN_USERNAME = "akashrajnayak";
+const ADMIN_PASSWORD = "Fucker@420";
 
 const roles = [
   {
@@ -53,14 +60,35 @@ const roles = [
 
 export function LoginPage() {
   const [selectedRole, setSelectedRole] = useState("");
+  const [adminUsername, setAdminUsername] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [adminError, setAdminError] = useState("");
   const navigate = useNavigate();
   const { login, isLoggingIn, isLoginSuccess, isLoginError, identity } =
     useInternetIdentity();
 
   const selectedRoleData = roles.find((r) => r.value === selectedRole);
+  const isAdminSelected = selectedRole === "admin";
 
   const handleLogin = async () => {
     if (!selectedRole) return;
+
+    // Admin uses username/password
+    if (isAdminSelected) {
+      setAdminError("");
+      if (
+        adminUsername === ADMIN_USERNAME &&
+        adminPassword === ADMIN_PASSWORD
+      ) {
+        sessionStorage.setItem("admin_auth", "true");
+        navigate({ to: "/dashboard/admin" });
+      } else {
+        setAdminError("Invalid username or password.");
+      }
+      return;
+    }
+
     // If already authenticated, go straight to dashboard
     if (identity) {
       navigate({ to: selectedRoleData!.route as "/" });
@@ -79,6 +107,10 @@ export function LoginPage() {
   // Allow demo access without login
   const handleDemoAccess = () => {
     if (!selectedRoleData) return;
+    if (isAdminSelected) {
+      // Demo access bypasses admin auth for preview
+      sessionStorage.setItem("admin_auth", "demo");
+    }
     navigate({ to: selectedRoleData.route as "/" });
   };
 
@@ -184,10 +216,89 @@ export function LoginPage() {
               </p>
             )}
 
+            {/* Admin credentials form */}
+            {isAdminSelected && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-5 space-y-3 p-4 rounded-xl border"
+                style={{
+                  borderColor: "oklch(0.88 0.04 262)",
+                  background: "oklch(0.97 0.02 255)",
+                }}
+              >
+                <p
+                  className="text-xs font-semibold text-center mb-1"
+                  style={{ color: "oklch(0.45 0.18 262)" }}
+                >
+                  Admin Login
+                </p>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Username</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <Input
+                      data-ocid="admin.input"
+                      type="text"
+                      placeholder="Enter username"
+                      value={adminUsername}
+                      onChange={(e) => {
+                        setAdminUsername(e.target.value);
+                        setAdminError("");
+                      }}
+                      className="pl-8 h-9 text-sm rounded-lg"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <Input
+                      data-ocid="admin.input"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter password"
+                      value={adminPassword}
+                      onChange={(e) => {
+                        setAdminPassword(e.target.value);
+                        setAdminError("");
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                      className="pl-8 pr-9 h-9 text-sm rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-3.5 h-3.5" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                {adminError && (
+                  <p
+                    data-ocid="admin.error_state"
+                    className="text-xs text-destructive text-center font-medium"
+                  >
+                    {adminError}
+                  </p>
+                )}
+              </motion.div>
+            )}
+
             {/* Login Button */}
             <Button
+              data-ocid="login.primary_button"
               onClick={handleLogin}
-              disabled={!selectedRole || isLoggingIn}
+              disabled={
+                !selectedRole ||
+                isLoggingIn ||
+                (isAdminSelected && (!adminUsername || !adminPassword))
+              }
               className="w-full h-12 rounded-xl font-semibold text-white border-0 mb-3"
               style={{
                 background: selectedRole
@@ -201,6 +312,11 @@ export function LoginPage() {
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Connecting...
                 </>
+              ) : isAdminSelected ? (
+                <>
+                  <Lock className="w-4 h-4 mr-2" />
+                  Login as Admin
+                </>
               ) : (
                 <>
                   <ShieldCheck className="w-4 h-4 mr-2" />
@@ -209,19 +325,22 @@ export function LoginPage() {
               )}
             </Button>
 
-            {/* Demo Access */}
-            <Button
-              variant="outline"
-              onClick={handleDemoAccess}
-              disabled={!selectedRole}
-              className="w-full h-11 rounded-xl font-medium"
-              style={{
-                borderColor: "oklch(0.9 0.02 255)",
-                opacity: selectedRole ? 1 : 0.5,
-              }}
-            >
-              🚀 Demo Access (No Login Required)
-            </Button>
+            {/* Demo Access - hide for admin */}
+            {!isAdminSelected && (
+              <Button
+                data-ocid="login.secondary_button"
+                variant="outline"
+                onClick={handleDemoAccess}
+                disabled={!selectedRole}
+                className="w-full h-11 rounded-xl font-medium"
+                style={{
+                  borderColor: "oklch(0.9 0.02 255)",
+                  opacity: selectedRole ? 1 : 0.5,
+                }}
+              >
+                🚀 Demo Access (No Login Required)
+              </Button>
+            )}
 
             {isLoginError && (
               <p className="text-center text-xs text-destructive mt-3">
@@ -230,8 +349,9 @@ export function LoginPage() {
             )}
 
             <p className="text-center text-xs text-muted-foreground mt-4 leading-relaxed">
-              OpenFrame uses Internet Identity for secure, password-free
-              authentication.
+              {isAdminSelected
+                ? "Admin access is protected. Contact support if you need help."
+                : "OpenFrame uses Internet Identity for secure, password-free authentication."}
             </p>
           </div>
         </motion.div>
