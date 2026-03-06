@@ -139,14 +139,13 @@ export function AdminDashboard() {
               />
               <StatsCard
                 title="Total Revenue"
-                value="₹48,500"
+                value="₹0"
                 icon="💰"
                 color="oklch(0.55 0.16 165)"
-                trend="+18%"
               />
               <StatsCard
                 title="Active Teachers"
-                value="3"
+                value="0"
                 icon="👨‍🏫"
                 color="oklch(0.6 0.22 15)"
               />
@@ -191,23 +190,18 @@ export function AdminDashboard() {
                 </h3>
                 <div className="space-y-3">
                   {[
-                    { label: "Nursery – UKG", count: 8, total: 15 },
-                    { label: "1st to 5th", count: 22, total: 30 },
-                    { label: "6th to 8th", count: 31, total: 40 },
-                    { label: "9th to 10th", count: 28, total: 35 },
-                    { label: "11th to 12th", count: 11, total: 20 },
-                  ].map(({ label, count, total }) => (
+                    { label: "Nursery – UKG" },
+                    { label: "1st to 5th" },
+                    { label: "6th to 8th" },
+                    { label: "9th to 10th" },
+                    { label: "11th to 12th" },
+                  ].map(({ label }) => (
                     <div key={label}>
                       <div className="flex justify-between text-xs mb-1">
                         <span className="text-foreground/70">{label}</span>
-                        <span className="font-medium text-foreground">
-                          {count}/{total}
-                        </span>
+                        <span className="font-medium text-foreground">0/0</span>
                       </div>
-                      <Progress
-                        value={(count / total) * 100}
-                        className="h-1.5"
-                      />
+                      <Progress value={0} className="h-1.5" />
                     </div>
                   ))}
                 </div>
@@ -318,19 +312,19 @@ export function AdminDashboard() {
             <div className="grid grid-cols-3 gap-4 mb-6">
               <StatsCard
                 title="Present Today"
-                value="28"
+                value="0"
                 icon="✅"
                 color="oklch(0.55 0.16 165)"
               />
               <StatsCard
                 title="Absent Today"
-                value="4"
+                value="0"
                 icon="❌"
                 color="oklch(0.577 0.245 27)"
               />
               <StatsCard
                 title="Avg Attendance"
-                value="87%"
+                value="0%"
                 icon="📊"
                 color="oklch(0.45 0.18 262)"
               />
@@ -379,21 +373,19 @@ export function AdminDashboard() {
             <div className="grid grid-cols-3 gap-4 mb-6">
               <StatsCard
                 title="Total Revenue"
-                value="₹48,500"
+                value="₹0"
                 icon="💰"
                 color="oklch(0.55 0.16 165)"
               />
               <StatsCard
                 title="Paid"
-                value={`₹${SAMPLE_PAYMENTS.filter((p) => p.status === "Paid")
-                  .reduce((a, p) => a + Number(p.amount) / 100, 0)
-                  .toFixed(0)}`}
+                value="₹0"
                 icon="✅"
                 color="oklch(0.45 0.18 262)"
               />
               <StatsCard
                 title="Pending"
-                value={`${SAMPLE_PAYMENTS.filter((p) => p.status === "Pending").length}`}
+                value="0"
                 icon="⏳"
                 color="oklch(0.68 0.19 50)"
               />
@@ -509,13 +501,13 @@ export function AdminDashboard() {
             <div className="grid grid-cols-2 gap-4 mb-6">
               <StatsCard
                 title="Total Issued"
-                value="24"
+                value="0"
                 icon="🏆"
                 color="oklch(0.68 0.19 50)"
               />
               <StatsCard
                 title="This Month"
-                value="8"
+                value="0"
                 icon="📜"
                 color="oklch(0.45 0.18 262)"
               />
@@ -535,43 +527,15 @@ export function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {[
-                    {
-                      certId: "1",
-                      certNumber: "OFE-2025-M-001",
-                      studentId: "1",
-                      courseName: "Mathematics Excellence",
-                      issueDate: "2025-12-15",
-                    },
-                    {
-                      certId: "2",
-                      certNumber: "OFE-2025-S-002",
-                      studentId: "1",
-                      courseName: "Science Achiever",
-                      issueDate: "2025-12-20",
-                    },
-                    {
-                      certId: "3",
-                      certNumber: "OFE-2026-E-003",
-                      studentId: "2",
-                      courseName: "English Proficiency",
-                      issueDate: "2026-01-10",
-                    },
-                    {
-                      certId: "4",
-                      certNumber: "OFE-2026-M-004",
-                      studentId: "3",
-                      courseName: "Maths Topper",
-                      issueDate: "2026-01-20",
-                    },
-                    {
-                      certId: "5",
-                      certNumber: "OFE-2026-A-005",
-                      studentId: "4",
-                      courseName: "All-Round Excellence",
-                      issueDate: "2026-02-05",
-                    },
-                  ].map((c) => (
+                  {(
+                    [] as {
+                      certId: string;
+                      certNumber: string;
+                      studentId: string;
+                      courseName: string;
+                      issueDate: string;
+                    }[]
+                  ).map((c) => (
                     <TableRow key={c.certId}>
                       <TableCell className="font-mono text-xs">
                         {c.certNumber}

@@ -7,6 +7,7 @@ import { DemoFormSection } from "../components/landing/DemoFormSection";
 import { FeaturesSection } from "../components/landing/FeaturesSection";
 import { HeroSection } from "../components/landing/HeroSection";
 import { PricingSection } from "../components/landing/PricingSection";
+import { StartupIndiaSection } from "../components/landing/StartupIndiaSection";
 import { TeachersSection } from "../components/landing/TeachersSection";
 import { TestimonialsSection } from "../components/landing/TestimonialsSection";
 import { WhyChooseSection } from "../components/landing/WhyChooseSection";
@@ -26,6 +27,7 @@ export function LandingPage() {
         <PricingSection />
         <TeachersSection />
         <CTASection />
+        <StartupIndiaSection />
       </main>
       <Footer />
     </div>
