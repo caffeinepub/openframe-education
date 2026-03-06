@@ -10,7 +10,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, GraduationCap, Loader2, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
 const roles = [
@@ -61,13 +61,20 @@ export function LoginPage() {
 
   const handleLogin = async () => {
     if (!selectedRole) return;
+    // If already authenticated, go straight to dashboard
+    if (identity) {
+      navigate({ to: selectedRoleData!.route as "/" });
+      return;
+    }
     await login();
   };
 
   // Redirect after successful login
-  if (isLoginSuccess && identity && selectedRoleData) {
-    setTimeout(() => navigate({ to: selectedRoleData.route as "/" }), 100);
-  }
+  useEffect(() => {
+    if (isLoginSuccess && identity && selectedRoleData) {
+      navigate({ to: selectedRoleData.route as "/" });
+    }
+  }, [isLoginSuccess, identity, selectedRoleData, navigate]);
 
   // Allow demo access without login
   const handleDemoAccess = () => {
@@ -169,6 +176,13 @@ export function LoginPage() {
                 ))}
               </div>
             </div>
+
+            {/* Helper text when no role selected */}
+            {!selectedRole && (
+              <p className="text-center text-xs text-muted-foreground mb-4 -mt-2">
+                Please select your role to continue
+              </p>
+            )}
 
             {/* Login Button */}
             <Button
