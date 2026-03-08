@@ -1,6 +1,8 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -11,16 +13,25 @@ import {
 } from "@/components/ui/table";
 import {
   Award,
+  BarChart3,
   BookOpen,
   Calendar,
   ClipboardCheck,
+  ClipboardList,
   Clock,
   CreditCard,
+  IndianRupee,
   LayoutDashboard,
+  Lock,
+  PlusCircle,
   Share2,
   Users,
+  Users2,
+  Wallet,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
@@ -37,12 +48,49 @@ import {
   useGetAllDemoBookings,
   useGetAllStudyMaterials,
 } from "../../hooks/useQueries";
+import type {
+  EnrollmentLead,
+  FieldExecAccount,
+  WithdrawalRequest,
+} from "../../utils/referralStore";
+import {
+  approveLead,
+  approveWithdrawal,
+  getFEAccounts,
+  getLeads,
+  getWithdrawals,
+  rejectLead,
+  rejectWithdrawal,
+  saveFEAccount,
+  updateFEAccount,
+  updateLead,
+} from "../../utils/referralStore";
 
 const navItems = [
   {
     id: "overview",
     label: "Overview",
     icon: <LayoutDashboard className="w-4 h-4" />,
+  },
+  {
+    id: "enrollment-leads",
+    label: "Enrollment Leads",
+    icon: <ClipboardList className="w-4 h-4" />,
+  },
+  {
+    id: "fe-management",
+    label: "FE Management",
+    icon: <Users2 className="w-4 h-4" />,
+  },
+  {
+    id: "withdrawals",
+    label: "Withdrawals",
+    icon: <Wallet className="w-4 h-4" />,
+  },
+  {
+    id: "commission-reports",
+    label: "Commission Reports",
+    icon: <BarChart3 className="w-4 h-4" />,
   },
   {
     id: "demo-bookings",
@@ -87,6 +135,10 @@ const statusColors: Record<string, string> = {
   Inactive: "bg-red-100 text-red-800",
   Present: "bg-green-100 text-green-800",
   Absent: "bg-red-100 text-red-800",
+  Approved: "bg-green-100 text-green-800",
+  Rejected: "bg-red-100 text-red-800",
+  Received: "bg-blue-100 text-blue-800",
+  Unpaid: "bg-gray-100 text-gray-600",
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -99,10 +151,36 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+interface NewFEForm {
+  feAccountId: string;
+  feCode: string;
+  name: string;
+  phone: string;
+  upiDetails: string;
+}
+
 export function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("overview");
   const { data: demoBookings } = useGetAllDemoBookings();
   const { data: studyMaterials } = useGetAllStudyMaterials();
+
+  // localStorage-backed state
+  const [leads, setLeads] = useState<EnrollmentLead[]>([]);
+  const [feAccounts, setFeAccounts] = useState<FieldExecAccount[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
+
+  // FE Management
+  const [showAddFE, setShowAddFE] = useState(false);
+  const [newFEForm, setNewFEForm] = useState<NewFEForm>({
+    feAccountId: "",
+    feCode: "",
+    name: "",
+    phone: "",
+    upiDetails: "",
+  });
+  const [editFEId, setEditFEId] = useState<string | null>(null);
+  const [editUPI, setEditUPI] = useState("");
+  const [editActive, setEditActive] = useState(true);
 
   const bookings =
     demoBookings && demoBookings.length > 0
@@ -112,6 +190,114 @@ export function AdminDashboard() {
     studyMaterials && studyMaterials.length > 0
       ? studyMaterials
       : SAMPLE_STUDY_MATERIALS;
+
+  const refreshData = () => {
+    setLeads(getLeads());
+    setFeAccounts(getFEAccounts());
+    setWithdrawals(getWithdrawals());
+  };
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial load only
+  useEffect(() => {
+    setLeads(getLeads());
+    setFeAccounts(getFEAccounts());
+    setWithdrawals(getWithdrawals());
+  }, []);
+
+  // ─── FE lookup helper ────────────────────────────────────────────────────────
+  const getFEName = (feAccountId: string) => {
+    const acc = feAccounts.find((a) => a.feAccountId === feAccountId);
+    return acc ? `${acc.name} (${acc.feCode})` : "—";
+  };
+
+  // ─── Enrollment Leads Handlers ───────────────────────────────────────────────
+  const handleApproveLead = (leadId: string) => {
+    approveLead(leadId);
+    refreshData();
+    toast.success("Lead approved and commission credited!");
+  };
+
+  const handleRejectLead = (leadId: string) => {
+    const note = window.prompt("Reason for rejection (optional):");
+    if (note === null) return; // cancelled
+    rejectLead(leadId);
+    refreshData();
+    toast.success("Lead rejected.");
+  };
+
+  const handleMarkPayment = (leadId: string) => {
+    updateLead(leadId, { paymentStatus: "Received" });
+    refreshData();
+    toast.success("Payment marked as received.");
+  };
+
+  // ─── Withdrawal Handlers ─────────────────────────────────────────────────────
+  const handleApproveWithdrawal = (requestId: string) => {
+    const note =
+      window.prompt("Admin note (optional):", "Payment processed") ?? "";
+    approveWithdrawal(requestId, note);
+    refreshData();
+    toast.success("Withdrawal approved!");
+  };
+
+  const handleRejectWithdrawal = (requestId: string) => {
+    const note = window.prompt("Reason for rejection:") ?? "";
+    rejectWithdrawal(requestId, note);
+    refreshData();
+    toast.error("Withdrawal rejected.");
+  };
+
+  // ─── FE Management Handlers ──────────────────────────────────────────────────
+  const handleAddFE = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFEForm.feCode.trim() || !newFEForm.name.trim()) {
+      toast.error("FE Code and Name are required.");
+      return;
+    }
+    const existing = feAccounts.find(
+      (a) => a.feAccountId === newFEForm.feAccountId.trim(),
+    );
+    if (existing) {
+      toast.error("FE Account ID already exists.");
+      return;
+    }
+    saveFEAccount({
+      feAccountId: newFEForm.feAccountId.trim() || `FE${Date.now()}`,
+      feCode: newFEForm.feCode.trim(),
+      name: newFEForm.name.trim(),
+      phone: newFEForm.phone.trim(),
+      upiDetails: newFEForm.upiDetails.trim(),
+      totalEarned: 0,
+      totalWithdrawn: 0,
+      enrollmentCount: 0,
+      bonusEarned: 0,
+      isActive: true,
+      createdAt: Date.now(),
+    });
+    refreshData();
+    setShowAddFE(false);
+    setNewFEForm({
+      feAccountId: "",
+      feCode: "",
+      name: "",
+      phone: "",
+      upiDetails: "",
+    });
+    toast.success("Field Executive added successfully!");
+  };
+
+  const startEditFE = (acc: FieldExecAccount) => {
+    setEditFEId(acc.feAccountId);
+    setEditUPI(acc.upiDetails);
+    setEditActive(acc.isActive);
+  };
+
+  const saveEditFE = (feAccountId: string) => {
+    updateFEAccount(feAccountId, { upiDetails: editUPI, isActive: editActive });
+    refreshData();
+    setEditFEId(null);
+    toast.success("Field Executive updated.");
+  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -210,6 +396,780 @@ export function AdminDashboard() {
           </div>
         );
 
+      // ─────────────────────────────────────────────────────────────────────────
+      case "enrollment-leads": {
+        const totalLeads = leads.length;
+        const pendingLeads = leads.filter((l) => l.status === "Pending").length;
+        const approvedLeads = leads.filter(
+          (l) => l.status === "Approved",
+        ).length;
+        const rejectedLeads = leads.filter(
+          (l) => l.status === "Rejected",
+        ).length;
+
+        return (
+          <div className="space-y-6">
+            <SectionHeader
+              title="Enrollment Leads"
+              description="Students enrolled via referral links or the Add Referral form"
+            />
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatsCard
+                title="Total Leads"
+                value={totalLeads}
+                icon={<ClipboardList className="w-5 h-5" />}
+                color="oklch(0.45 0.18 262)"
+              />
+              <StatsCard
+                title="Pending"
+                value={pendingLeads}
+                icon="⏳"
+                color="oklch(0.68 0.19 50)"
+              />
+              <StatsCard
+                title="Approved"
+                value={approvedLeads}
+                icon="✅"
+                color="oklch(0.55 0.16 165)"
+              />
+              <StatsCard
+                title="Rejected"
+                value={rejectedLeads}
+                icon="❌"
+                color="oklch(0.577 0.245 27)"
+              />
+            </div>
+
+            {/* Table */}
+            {leads.length === 0 ? (
+              <div
+                className="rounded-2xl border p-12 text-center bg-white"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="leads.empty_state"
+              >
+                <p className="text-foreground/60 text-sm">
+                  No enrollment leads yet. Share referral links to get started.
+                </p>
+              </div>
+            ) : (
+              <div
+                className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="leads.table"
+              >
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Class</TableHead>
+                        <TableHead>Course</TableHead>
+                        <TableHead>City</TableHead>
+                        <TableHead>Referral</TableHead>
+                        <TableHead>FE Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Payment</TableHead>
+                        <TableHead>Commission</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {leads.map((lead, idx) => {
+                        const isLocked =
+                          lead.status === "Rejected" ||
+                          (lead.status === "Approved" &&
+                            lead.paymentStatus === "Received");
+
+                        return (
+                          <TableRow
+                            key={lead.leadId}
+                            data-ocid={`leads.item.${idx + 1}`}
+                          >
+                            <TableCell className="font-mono text-xs text-foreground/50">
+                              #{idx + 1}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {lead.studentName}
+                              {lead.parentName && (
+                                <span className="block text-xs text-foreground/50">
+                                  {lead.parentName}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {lead.classLevel}
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                                style={{
+                                  background: "oklch(0.96 0.03 262)",
+                                  color: "oklch(0.45 0.18 262)",
+                                }}
+                              >
+                                {lead.courseSelected}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {lead.cityVillage || "—"}
+                            </TableCell>
+                            <TableCell
+                              className="font-mono text-xs font-bold"
+                              style={{ color: "oklch(0.45 0.18 262)" }}
+                            >
+                              {lead.referralCode || "—"}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {getFEName(lead.feAccountId)}
+                            </TableCell>
+                            <TableCell>
+                              <StatusBadge status={lead.status} />
+                            </TableCell>
+                            <TableCell>
+                              <StatusBadge status={lead.paymentStatus} />
+                            </TableCell>
+                            <TableCell className="font-semibold text-sm">
+                              ₹{lead.commissionAmount}
+                            </TableCell>
+                            <TableCell>
+                              {isLocked ? (
+                                <span title="No actions available">
+                                  <Lock className="w-4 h-4 text-foreground/30" />
+                                </span>
+                              ) : lead.status === "Pending" ? (
+                                <div className="flex gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white px-2.5"
+                                    onClick={() =>
+                                      handleApproveLead(lead.leadId)
+                                    }
+                                    data-ocid={`leads.approve.primary_button.${idx + 1}`}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="h-7 text-xs px-2.5"
+                                    onClick={() =>
+                                      handleRejectLead(lead.leadId)
+                                    }
+                                    data-ocid={`leads.reject.delete_button.${idx + 1}`}
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+                              ) : lead.status === "Approved" &&
+                                lead.paymentStatus === "Unpaid" ? (
+                                <Button
+                                  size="sm"
+                                  className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5"
+                                  onClick={() => handleMarkPayment(lead.leadId)}
+                                  data-ocid={`leads.payment.primary_button.${idx + 1}`}
+                                >
+                                  Mark Paid
+                                </Button>
+                              ) : null}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────
+      case "fe-management":
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <SectionHeader
+                title="Field Executive Management"
+                description="Add, view, and manage all field executives"
+              />
+              <Button
+                onClick={() => setShowAddFE(!showAddFE)}
+                className="gap-2 text-white font-semibold shrink-0"
+                style={{ background: "oklch(0.45 0.18 262)" }}
+                data-ocid="fe.add.open_modal_button"
+              >
+                {showAddFE ? (
+                  <>
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="w-4 h-4" />
+                    Add Field Executive
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Add FE Inline Form */}
+            {showAddFE && (
+              <form
+                onSubmit={handleAddFE}
+                className="bg-white rounded-2xl border p-6 shadow-sm space-y-4 max-w-lg"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="fe.add.panel"
+              >
+                <h3 className="font-bold text-foreground">
+                  Add Field Executive
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="feId">FE Account ID *</Label>
+                    <Input
+                      id="feId"
+                      value={newFEForm.feAccountId}
+                      onChange={(e) =>
+                        setNewFEForm((p) => ({
+                          ...p,
+                          feAccountId: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. FE1002"
+                      className="rounded-xl"
+                      data-ocid="fe.id.input"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="feCode">Referral Code *</Label>
+                    <Input
+                      id="feCode"
+                      value={newFEForm.feCode}
+                      onChange={(e) =>
+                        setNewFEForm((p) => ({ ...p, feCode: e.target.value }))
+                      }
+                      placeholder="e.g. RK2045"
+                      className="rounded-xl"
+                      data-ocid="fe.code.input"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="feName">Name *</Label>
+                    <Input
+                      id="feName"
+                      value={newFEForm.name}
+                      onChange={(e) =>
+                        setNewFEForm((p) => ({ ...p, name: e.target.value }))
+                      }
+                      placeholder="Full name"
+                      className="rounded-xl"
+                      data-ocid="fe.name.input"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="fePhone">Phone</Label>
+                    <Input
+                      id="fePhone"
+                      value={newFEForm.phone}
+                      onChange={(e) =>
+                        setNewFEForm((p) => ({ ...p, phone: e.target.value }))
+                      }
+                      placeholder="+91 XXXXX XXXXX"
+                      type="tel"
+                      className="rounded-xl"
+                      data-ocid="fe.phone.input"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="feUpi">UPI Details</Label>
+                  <Input
+                    id="feUpi"
+                    value={newFEForm.upiDetails}
+                    onChange={(e) =>
+                      setNewFEForm((p) => ({
+                        ...p,
+                        upiDetails: e.target.value,
+                      }))
+                    }
+                    placeholder="UPI ID or bank account"
+                    className="rounded-xl"
+                    data-ocid="fe.upi.input"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full text-white font-semibold gap-2"
+                  style={{ background: "oklch(0.45 0.18 262)" }}
+                  data-ocid="fe.add.submit_button"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Add Field Executive
+                </Button>
+              </form>
+            )}
+
+            {/* FE Table */}
+            {feAccounts.length === 0 ? (
+              <div
+                className="rounded-2xl border p-12 text-center bg-white"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="fe.empty_state"
+              >
+                <p className="text-foreground/60 text-sm">
+                  No field executives yet. Add one above.
+                </p>
+              </div>
+            ) : (
+              <div
+                className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="fe.table"
+              >
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>FE Code</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>UPI Details</TableHead>
+                        <TableHead>Total Earned</TableHead>
+                        <TableHead>Withdrawn</TableHead>
+                        <TableHead>Balance</TableHead>
+                        <TableHead>Enrollments</TableHead>
+                        <TableHead>Bonus</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {feAccounts.map((acc, idx) => {
+                        const isEditing = editFEId === acc.feAccountId;
+                        const balance = acc.totalEarned - acc.totalWithdrawn;
+
+                        return (
+                          <TableRow
+                            key={acc.feAccountId}
+                            data-ocid={`fe.item.${idx + 1}`}
+                          >
+                            <TableCell
+                              className="font-mono font-bold text-xs"
+                              style={{ color: "oklch(0.45 0.18 262)" }}
+                            >
+                              {acc.feCode}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {acc.name}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {acc.phone}
+                            </TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <Input
+                                  value={editUPI}
+                                  onChange={(e) => setEditUPI(e.target.value)}
+                                  className="h-7 text-xs rounded-lg w-36"
+                                  data-ocid={`fe.upi.input.${idx + 1}`}
+                                />
+                              ) : (
+                                <span className="text-xs text-foreground/70">
+                                  {acc.upiDetails || "—"}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-semibold text-green-700">
+                              ₹{acc.totalEarned}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              ₹{acc.totalWithdrawn}
+                            </TableCell>
+                            <TableCell
+                              className="font-semibold"
+                              style={{ color: "oklch(0.45 0.18 262)" }}
+                            >
+                              ₹{balance}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {acc.enrollmentCount}
+                            </TableCell>
+                            <TableCell className="text-center font-semibold text-orange-600">
+                              ₹{acc.bonusEarned}
+                            </TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <Switch
+                                  checked={editActive}
+                                  onCheckedChange={setEditActive}
+                                  data-ocid={`fe.active.switch.${idx + 1}`}
+                                />
+                              ) : (
+                                <StatusBadge
+                                  status={acc.isActive ? "Active" : "Inactive"}
+                                />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <div className="flex gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-xs bg-green-600 text-white px-2.5"
+                                    onClick={() => saveEditFE(acc.feAccountId)}
+                                    data-ocid={`fe.save.save_button.${idx + 1}`}
+                                  >
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs px-2.5"
+                                    onClick={() => setEditFEId(null)}
+                                    data-ocid={`fe.cancel.cancel_button.${idx + 1}`}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs"
+                                  onClick={() => startEditFE(acc)}
+                                  data-ocid={`fe.edit.edit_button.${idx + 1}`}
+                                >
+                                  Edit
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      // ─────────────────────────────────────────────────────────────────────────
+      case "withdrawals": {
+        const pendingW = withdrawals.filter((w) => w.status === "Pending");
+        const approvedW = withdrawals.filter((w) => w.status === "Approved");
+        const totalApprovedAmount = approvedW.reduce((s, w) => s + w.amount, 0);
+
+        return (
+          <div className="space-y-6">
+            <SectionHeader
+              title="Withdrawal Requests"
+              description="Manage field executive payout requests"
+            />
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <StatsCard
+                title="Pending"
+                value={pendingW.length}
+                icon={<Wallet className="w-5 h-5" />}
+                color="oklch(0.68 0.19 50)"
+              />
+              <StatsCard
+                title="Approved"
+                value={approvedW.length}
+                icon="✅"
+                color="oklch(0.55 0.16 165)"
+              />
+              <StatsCard
+                title="Total Approved"
+                value={`₹${totalApprovedAmount}`}
+                icon={<IndianRupee className="w-5 h-5" />}
+                color="oklch(0.45 0.18 262)"
+              />
+            </div>
+
+            {/* Table */}
+            {withdrawals.length === 0 ? (
+              <div
+                className="rounded-2xl border p-12 text-center bg-white"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="withdrawals.empty_state"
+              >
+                <p className="text-foreground/60 text-sm">
+                  No withdrawal requests yet.
+                </p>
+              </div>
+            ) : (
+              <div
+                className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="withdrawals.table"
+              >
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Request ID</TableHead>
+                        <TableHead>FE Name</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>UPI Details</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Admin Note</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {withdrawals.map((w, idx) => (
+                        <TableRow
+                          key={w.requestId}
+                          data-ocid={`withdrawals.item.${idx + 1}`}
+                        >
+                          <TableCell className="font-mono text-xs text-foreground/50">
+                            {w.requestId}
+                          </TableCell>
+                          <TableCell className="text-sm font-medium">
+                            {getFEName(w.feAccountId)}
+                          </TableCell>
+                          <TableCell className="font-bold">
+                            ₹{w.amount}
+                          </TableCell>
+                          <TableCell className="text-xs text-foreground/70 max-w-[160px] truncate">
+                            {w.upiDetails}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={w.status} />
+                          </TableCell>
+                          <TableCell className="text-xs text-foreground/50">
+                            {new Date(w.createdAt).toLocaleDateString("en-IN")}
+                          </TableCell>
+                          <TableCell className="text-xs text-foreground/60">
+                            {w.adminNote || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {w.status === "Pending" ? (
+                              <div className="flex gap-1.5">
+                                <Button
+                                  size="sm"
+                                  className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white px-2.5"
+                                  onClick={() =>
+                                    handleApproveWithdrawal(w.requestId)
+                                  }
+                                  data-ocid={`withdrawals.approve.primary_button.${idx + 1}`}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-7 text-xs px-2.5"
+                                  onClick={() =>
+                                    handleRejectWithdrawal(w.requestId)
+                                  }
+                                  data-ocid={`withdrawals.reject.delete_button.${idx + 1}`}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            ) : (
+                              <span title="Already processed">
+                                <Lock className="w-4 h-4 text-foreground/30" />
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────
+      case "commission-reports": {
+        // Per-FE summary
+        const summaryMap: Record<
+          string,
+          {
+            feCode: string;
+            feName: string;
+            totalReferrals: number;
+            approvedEnrollments: number;
+            commissionEarned: number;
+            bonusEarned: number;
+            totalPaidOut: number;
+            balanceOwed: number;
+          }
+        > = {};
+
+        for (const acc of feAccounts) {
+          summaryMap[acc.feAccountId] = {
+            feCode: acc.feCode,
+            feName: acc.name,
+            totalReferrals: 0,
+            approvedEnrollments: acc.enrollmentCount,
+            commissionEarned: acc.totalEarned,
+            bonusEarned: acc.bonusEarned,
+            totalPaidOut: acc.totalWithdrawn,
+            balanceOwed: acc.totalEarned - acc.totalWithdrawn,
+          };
+        }
+
+        // Count referrals per FE from leads
+        for (const lead of leads) {
+          if (summaryMap[lead.feAccountId]) {
+            summaryMap[lead.feAccountId].totalReferrals += 1;
+          }
+        }
+
+        const summaryRows = Object.values(summaryMap);
+
+        const grandTotals = summaryRows.reduce(
+          (acc, row) => ({
+            totalReferrals: acc.totalReferrals + row.totalReferrals,
+            approvedEnrollments:
+              acc.approvedEnrollments + row.approvedEnrollments,
+            commissionEarned: acc.commissionEarned + row.commissionEarned,
+            bonusEarned: acc.bonusEarned + row.bonusEarned,
+            totalPaidOut: acc.totalPaidOut + row.totalPaidOut,
+            balanceOwed: acc.balanceOwed + row.balanceOwed,
+          }),
+          {
+            totalReferrals: 0,
+            approvedEnrollments: 0,
+            commissionEarned: 0,
+            bonusEarned: 0,
+            totalPaidOut: 0,
+            balanceOwed: 0,
+          },
+        );
+
+        return (
+          <div className="space-y-6">
+            <SectionHeader
+              title="Commission Reports"
+              description="Per-FE earnings summary and balance overview"
+            />
+
+            {summaryRows.length === 0 ? (
+              <div
+                className="rounded-2xl border p-12 text-center bg-white"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="reports.empty_state"
+              >
+                <p className="text-foreground/60 text-sm">
+                  No field executives found. Add FEs to see commission reports.
+                </p>
+              </div>
+            ) : (
+              <div
+                className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="reports.table"
+              >
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>FE Code</TableHead>
+                        <TableHead>FE Name</TableHead>
+                        <TableHead>Total Referrals</TableHead>
+                        <TableHead>Approved Enrollments</TableHead>
+                        <TableHead>Commission Earned</TableHead>
+                        <TableHead>Bonus Earned</TableHead>
+                        <TableHead>Total Paid Out</TableHead>
+                        <TableHead>Balance Owed</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {summaryRows.map((row, idx) => (
+                        <TableRow
+                          key={row.feCode}
+                          data-ocid={`reports.item.${idx + 1}`}
+                        >
+                          <TableCell
+                            className="font-mono font-bold text-xs"
+                            style={{ color: "oklch(0.45 0.18 262)" }}
+                          >
+                            {row.feCode}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {row.feName}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {row.totalReferrals}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {row.approvedEnrollments}
+                          </TableCell>
+                          <TableCell className="font-semibold text-green-700">
+                            ₹{row.commissionEarned}
+                          </TableCell>
+                          <TableCell className="font-semibold text-orange-600">
+                            ₹{row.bonusEarned}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            ₹{row.totalPaidOut}
+                          </TableCell>
+                          <TableCell
+                            className="font-bold"
+                            style={{ color: "oklch(0.45 0.18 262)" }}
+                          >
+                            ₹{row.balanceOwed}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                      {/* Grand Totals Row */}
+                      <TableRow
+                        className="font-bold"
+                        style={{ background: "oklch(0.97 0.03 262)" }}
+                      >
+                        <TableCell colSpan={2} className="font-extrabold">
+                          Grand Total
+                        </TableCell>
+                        <TableCell className="text-center font-bold">
+                          {grandTotals.totalReferrals}
+                        </TableCell>
+                        <TableCell className="text-center font-bold">
+                          {grandTotals.approvedEnrollments}
+                        </TableCell>
+                        <TableCell className="font-extrabold text-green-700">
+                          ₹{grandTotals.commissionEarned}
+                        </TableCell>
+                        <TableCell className="font-extrabold text-orange-600">
+                          ₹{grandTotals.bonusEarned}
+                        </TableCell>
+                        <TableCell className="font-bold">
+                          ₹{grandTotals.totalPaidOut}
+                        </TableCell>
+                        <TableCell
+                          className="font-extrabold"
+                          style={{ color: "oklch(0.45 0.18 262)" }}
+                        >
+                          ₹{grandTotals.balanceOwed}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────
       case "demo-bookings":
         return (
           <div>

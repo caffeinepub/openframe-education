@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { GraduationCap, Menu, X } from "lucide-react";
+import { BookOpen, GraduationCap, Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
@@ -58,6 +58,18 @@ export function Navbar() {
                 {link.label}
               </button>
             ))}
+            <Link
+              to="/pragati"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ml-1"
+              style={{
+                background: "oklch(0.96 0.06 55)",
+                color: "oklch(0.55 0.18 45)",
+              }}
+              data-ocid="nav.pragati.link"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              Pragati Magazine
+            </Link>
           </div>
 
           {/* Desktop CTA */}
@@ -117,6 +129,19 @@ export function Navbar() {
                   {link.label}
                 </button>
               ))}
+              <Link
+                to="/pragati"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg"
+                style={{
+                  background: "oklch(0.96 0.06 55)",
+                  color: "oklch(0.55 0.18 45)",
+                }}
+                data-ocid="nav.pragati.mobile.link"
+              >
+                <BookOpen className="w-4 h-4" />
+                Pragati Magazine
+              </Link>
               <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-border">
                 <Button
                   variant="outline"

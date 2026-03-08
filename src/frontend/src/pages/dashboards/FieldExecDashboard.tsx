@@ -1,6 +1,8 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -16,25 +18,81 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { IndianRupee, Loader2, Share2, UserPlus, Users } from "lucide-react";
-import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  BookOpen,
+  Check,
+  ClipboardList,
+  Copy,
+  GraduationCap,
+  IndianRupee,
+  LayoutDashboard,
+  Loader2,
+  MessageCircle,
+  Send,
+  Share2,
+  Star,
+  TrendingUp,
+  UserPlus,
+  Users,
+  Wallet,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
-import { SAMPLE_REFERRALS, SAMPLE_STUDENTS } from "../../data/sampleData";
 import { useCreateReferral } from "../../hooks/useQueries";
+import type {
+  EnrollmentLead,
+  FieldExecAccount,
+  WithdrawalRequest,
+} from "../../utils/referralStore";
+import {
+  BONUS_PER_10,
+  COMMISSION_MAP,
+  ensureDefaultFEAccount,
+  getFEByCode,
+  getLeads,
+  getWithdrawals,
+  saveLead,
+  saveWithdrawal,
+} from "../../utils/referralStore";
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+const FIELD_EXEC_ID = BigInt(1);
+const REFERRAL_CODE = "AK1023";
+const REFERRAL_LINK = `openframeeducation.com/enroll?ref=${REFERRAL_CODE}`;
+const WHATSAPP_NUMBER = "917996401388";
+
+const PLAN_COMMISSION: Record<number, number> = {
+  1: 50,
+  2: 100,
+  3: 150,
+  4: 50,
+};
+
+// ─── Nav Items ────────────────────────────────────────────────────────────────
 const navItems = [
   {
-    id: "referrals",
-    label: "My Referrals",
-    icon: <Share2 className="w-4 h-4" />,
+    id: "overview",
+    label: "Overview",
+    icon: <LayoutDashboard className="w-4 h-4" />,
   },
   {
-    id: "commission",
-    label: "Commission Summary",
+    id: "commission-plan",
+    label: "Commission Plan",
     icon: <IndianRupee className="w-4 h-4" />,
+  },
+  {
+    id: "pragati-magazine",
+    label: "Pragati Magazine",
+    icon: <BookOpen className="w-4 h-4" />,
+  },
+  {
+    id: "course-programs",
+    label: "Course Programs",
+    icon: <GraduationCap className="w-4 h-4" />,
   },
   {
     id: "add-referral",
@@ -42,62 +100,156 @@ const navItems = [
     icon: <UserPlus className="w-4 h-4" />,
   },
   {
-    id: "enrolled",
-    label: "Enrolled Students",
+    id: "my-leads",
+    label: "My Leads",
+    icon: <ClipboardList className="w-4 h-4" />,
+  },
+  {
+    id: "share-link",
+    label: "Share Link",
+    icon: <Share2 className="w-4 h-4" />,
+  },
+  {
+    id: "my-referrals",
+    label: "My Referrals",
     icon: <Users className="w-4 h-4" />,
+  },
+  {
+    id: "withdraw",
+    label: "Withdraw",
+    icon: <Wallet className="w-4 h-4" />,
   },
 ];
 
-const FIELD_EXEC_ID = BigInt(1);
+// ─── Course Data ──────────────────────────────────────────────────────────────
+const COURSES = [
+  {
+    label: "Nursery – UKG",
+    subjects: ["EVS", "English", "Maths", "Drawing"],
+    fee: 250,
+    color: "oklch(0.55 0.16 165)",
+    badge: "Early Learning",
+  },
+  {
+    label: "1st to 5th",
+    subjects: ["English", "Maths", "Science", "Social", "Kannada"],
+    fee: 300,
+    color: "oklch(0.45 0.18 262)",
+    badge: "Primary",
+  },
+  {
+    label: "6th to 8th",
+    subjects: ["English", "Maths", "Science", "Social", "Kannada", "Hindi"],
+    fee: 350,
+    color: "oklch(0.68 0.19 50)",
+    badge: "Middle School",
+  },
+  {
+    label: "9th to 10th",
+    subjects: ["English", "Maths", "Science", "Social", "Kannada", "Hindi"],
+    fee: 400,
+    color: "oklch(0.6 0.22 15)",
+    badge: "Secondary",
+  },
+  {
+    label: "11th to 12th",
+    subjects: ["Physics", "Chemistry", "Maths/Biology", "Commerce", "Arts"],
+    fee: 500,
+    color: "oklch(0.62 0.2 320)",
+    badge: "Senior Secondary",
+  },
+];
 
-// Commission per plan: Basic=₹50, Standard=₹100, Premium=₹150
-const PLAN_COMMISSION: Record<number, number> = { 1: 50, 2: 100, 3: 150 };
-// Bonus: ₹100 for every 10 enrollments
-const BONUS_PER_10 = 100;
+// ─── Referral Row type ────────────────────────────────────────────────────────
+interface LocalReferral {
+  id: string;
+  studentName: string;
+  classLevel: string;
+  plan: string;
+  commission: number;
+  mobile: string;
+  cityVillage: string;
+  isPaid: boolean;
+  createdAt: number;
+}
 
+// ─── Main Component ───────────────────────────────────────────────────────────
 export function FieldExecDashboard() {
-  const [activeSection, setActiveSection] = useState("referrals");
+  const [activeSection, setActiveSection] = useState("overview");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [localReferrals, setLocalReferrals] = useState<LocalReferral[]>([]);
+
+  // localStorage-based state
+  const [feAccount, setFeAccount] = useState<FieldExecAccount | null>(null);
+  const [myLeads, setMyLeads] = useState<EnrollmentLead[]>([]);
+  const [myWithdrawals, setMyWithdrawals] = useState<WithdrawalRequest[]>([]);
+
   const [referralForm, setReferralForm] = useState({
     studentName: "",
+    parentName: "",
     classLevel: "",
     planId: "2",
     mobile: "",
     cityVillage: "",
   });
+
+  // Withdraw form
+  const [withdrawForm, setWithdrawForm] = useState({
+    amount: "",
+    upiDetails: "",
+  });
+
   const createReferral = useCreateReferral();
 
-  const myReferrals = SAMPLE_REFERRALS.filter(
-    (r) => r.fieldExecId === FIELD_EXEC_ID,
-  );
-  const enrolledCount = myReferrals.filter((r) => r.isPaid).length;
-  const bonusEarned = Math.floor(enrolledCount / 10) * BONUS_PER_10;
-  const totalEarned =
-    myReferrals.reduce((a, r) => a + Number(r.commissionAmount), 0) +
-    bonusEarned;
-  const paidEarned = myReferrals
-    .filter((r) => r.isPaid)
-    .reduce((a, r) => a + Number(r.commissionAmount), 0);
-  const pendingEarned = myReferrals
-    .filter((r) => !r.isPaid)
-    .reduce((a, r) => a + Number(r.commissionAmount), 0);
+  // ─── Init FE account & load data ──────────────────────────────────────────
+  useEffect(() => {
+    const acc = ensureDefaultFEAccount();
+    setFeAccount(acc);
+    refreshData(acc);
+  }, []);
 
-  const classLevels = [
-    "Nursery – UKG",
-    "1st to 5th",
-    "6th to 8th",
-    "9th to 10th",
-    "11th to 12th",
-  ];
+  const refreshData = (acc?: FieldExecAccount) => {
+    const currentAcc = acc ?? getFEByCode(REFERRAL_CODE);
+    if (currentAcc) setFeAccount({ ...currentAcc });
 
+    const allLeads = getLeads();
+    const filtered = allLeads.filter((l) => l.referralCode === REFERRAL_CODE);
+    setMyLeads(filtered);
+
+    const allWithdrawals = getWithdrawals();
+    const myW = allWithdrawals.filter(
+      (w) => w.feAccountId === (currentAcc?.feAccountId ?? "FE1001"),
+    );
+    setMyWithdrawals(myW);
+  };
+
+  // ─── Derived stats from localStorage account ──────────────────────────────
+  const availableBalance =
+    (feAccount?.totalEarned ?? 0) - (feAccount?.totalWithdrawn ?? 0);
+  const enrolledCount = feAccount?.enrollmentCount ?? 0;
+  const bonusEarned = feAccount?.bonusEarned ?? 0;
+  const totalEarned = feAccount?.totalEarned ?? 0;
+
+  // Legacy local referrals (from Add Referral form — kept for existing UX)
+  const magazineSales = localReferrals.filter(
+    (r) => r.plan === "Pragati Magazine",
+  ).length;
+  const bonusProgress = enrolledCount % 10;
+  const bonusProgressPct = (bonusProgress / 10) * 100;
+
+  const planLabel = (planId: string) => {
+    if (planId === "1") return "Basic";
+    if (planId === "3") return "Premium";
+    if (planId === "4") return "Pragati Magazine";
+    return "Standard";
+  };
+
+  // ─── Handle Add Referral ────────────────────────────────────────────────────
   const handleAddReferral = async (e: React.FormEvent) => {
     e.preventDefault();
     const commission = PLAN_COMMISSION[Number(referralForm.planId)] ?? 100;
-    const planLabel =
-      referralForm.planId === "1"
-        ? "Basic"
-        : referralForm.planId === "3"
-          ? "Premium"
-          : "Standard";
+    const plan = planLabel(referralForm.planId);
+
     try {
       await createReferral.mutateAsync({
         referralId: BigInt(Date.now()),
@@ -107,361 +259,1001 @@ export function FieldExecDashboard() {
         isPaid: false,
         createdAt: BigInt(Date.now()),
       });
-      toast.success(
-        `Referral added! You'll earn ₹${commission} commission (${planLabel} Plan).`,
-      );
-      setReferralForm({
-        studentName: "",
-        classLevel: "",
-        planId: "2",
-        mobile: "",
-        cityVillage: "",
-      });
     } catch {
-      toast.success(
-        `Referral recorded! You'll earn ₹${commission} commission (${planLabel} Plan).`,
-      );
-      setReferralForm({
-        studentName: "",
-        classLevel: "",
-        planId: "2",
-        mobile: "",
-        cityVillage: "",
-      });
+      // silently proceed — backend may not be live
     }
+
+    // Also save to localStorage as EnrollmentLead
+    const acc = getFEByCode(REFERRAL_CODE);
+    const lead: EnrollmentLead = {
+      leadId: `L${Date.now()}`,
+      studentName: referralForm.studentName.trim(),
+      parentName: referralForm.parentName.trim(),
+      mobile: referralForm.mobile.trim(),
+      classLevel: referralForm.classLevel,
+      courseSelected: plan,
+      cityVillage: referralForm.cityVillage.trim(),
+      referralCode: REFERRAL_CODE,
+      feAccountId: acc?.feAccountId ?? "FE1001",
+      status: "Pending",
+      paymentStatus: "Unpaid",
+      commissionAmount: commission,
+      commissionPaid: false,
+      createdAt: Date.now(),
+    };
+    saveLead(lead);
+    refreshData();
+
+    const newReferral: LocalReferral = {
+      id: Date.now().toString(),
+      studentName: referralForm.studentName,
+      classLevel: referralForm.classLevel,
+      plan,
+      commission,
+      mobile: referralForm.mobile,
+      cityVillage: referralForm.cityVillage,
+      isPaid: false,
+      createdAt: Date.now(),
+    };
+
+    setLocalReferrals((prev) => [...prev, newReferral]);
+
+    toast.success(
+      `Referral added! You'll earn ₹${commission} commission (${plan} Plan).`,
+    );
+
+    setReferralForm({
+      studentName: "",
+      parentName: "",
+      classLevel: "",
+      planId: "2",
+      mobile: "",
+      cityVillage: "",
+    });
   };
 
-  const renderContent = () => {
-    switch (activeSection) {
-      case "referrals":
-        return (
-          <div>
-            <SectionHeader
-              title="My Referrals"
-              description="Students you've referred to OpenFrame"
-            />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <StatsCard
-                title="Total Referrals"
-                value={myReferrals.length}
-                icon="🔗"
-                color="oklch(0.62 0.2 320)"
-              />
-              <StatsCard
-                title="Enrolled"
-                value={enrolledCount}
-                icon="✅"
-                color="oklch(0.55 0.16 165)"
-              />
-              <StatsCard
-                title="Pending"
-                value={myReferrals.filter((r) => !r.isPaid).length}
-                icon="⏳"
-                color="oklch(0.68 0.19 50)"
-              />
-              <StatsCard
-                title="Total Earned"
-                value={`₹${totalEarned}`}
-                icon="💰"
-                color="oklch(0.45 0.18 262)"
-              />
-            </div>
+  // ─── Handle Withdraw ────────────────────────────────────────────────────────
+  const handleWithdraw = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = Number(withdrawForm.amount);
+
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount.");
+      return;
+    }
+    if (amount > availableBalance) {
+      toast.error(`Maximum withdrawable amount is ₹${availableBalance}.`);
+      return;
+    }
+    if (!withdrawForm.upiDetails.trim()) {
+      toast.error("Please enter your UPI ID / Bank Details.");
+      return;
+    }
+
+    const acc = getFEByCode(REFERRAL_CODE);
+    const request: WithdrawalRequest = {
+      requestId: `W${Date.now()}`,
+      feAccountId: acc?.feAccountId ?? "FE1001",
+      amount,
+      upiDetails: withdrawForm.upiDetails.trim(),
+      status: "Pending",
+      adminNote: "",
+      createdAt: Date.now(),
+    };
+
+    saveWithdrawal(request);
+    refreshData();
+    setWithdrawForm({ amount: "", upiDetails: "" });
+    toast.success("Withdrawal request submitted! Admin will process it soon.");
+  };
+
+  // ─── Copy Link ──────────────────────────────────────────────────────────────
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(REFERRAL_LINK).catch(() => {});
+    setLinkCopied(true);
+    toast.success("Link copied!");
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
+  const classLevels = [
+    "Nursery – UKG",
+    "1st to 5th",
+    "6th to 8th",
+    "9th to 10th",
+    "11th to 12th",
+  ];
+
+  // ─── Section Renders ────────────────────────────────────────────────────────
+  const renderOverview = () => (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Referral Earnings Program"
+        description="Your dashboard for tracking commissions, promoting courses and Pragati Study Magazine"
+      />
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatsCard
+          title="Total Referrals"
+          value={myLeads.length + localReferrals.length}
+          icon={<Share2 className="w-5 h-5" />}
+          color="oklch(0.45 0.18 262)"
+          data-ocid="overview.referrals.card"
+        />
+        <StatsCard
+          title="Approved"
+          value={myLeads.filter((l) => l.status === "Approved").length}
+          icon={<Check className="w-5 h-5" />}
+          color="oklch(0.55 0.16 165)"
+          data-ocid="overview.enrolled.card"
+        />
+        <StatsCard
+          title="Magazine Sales"
+          value={magazineSales}
+          icon={<BookOpen className="w-5 h-5" />}
+          color="oklch(0.52 0.18 145)"
+          data-ocid="overview.magazine.card"
+        />
+        <StatsCard
+          title="Total Earnings"
+          value={`₹${totalEarned}`}
+          icon={<IndianRupee className="w-5 h-5" />}
+          color="oklch(0.68 0.19 50)"
+          data-ocid="overview.earnings.card"
+        />
+        <StatsCard
+          title="Bonus Earned"
+          value={`₹${bonusEarned}`}
+          icon={<Star className="w-5 h-5" />}
+          color="oklch(0.62 0.2 320)"
+          data-ocid="overview.bonus.card"
+        />
+      </div>
+
+      {/* Commission Plan Cards */}
+      <div>
+        <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
+          <IndianRupee
+            className="w-4 h-4"
+            style={{ color: "oklch(0.45 0.18 262)" }}
+          />
+          Commission Plan
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              label: "Basic Plan",
+              amount: 50,
+              color: "oklch(0.45 0.18 262)",
+              bg: "oklch(0.96 0.03 262)",
+            },
+            {
+              label: "Standard Plan",
+              amount: 100,
+              color: "oklch(0.68 0.19 50)",
+              bg: "oklch(0.97 0.04 50)",
+            },
+            {
+              label: "Premium Plan",
+              amount: 150,
+              color: "oklch(0.55 0.16 165)",
+              bg: "oklch(0.96 0.04 165)",
+            },
+          ].map(({ label, amount, color, bg }) => (
             <div
-              className="bg-white rounded-2xl border shadow-sm overflow-hidden"
-              style={{ borderColor: "oklch(0.93 0.02 255)" }}
+              key={label}
+              className="rounded-2xl p-5 border text-center shadow-sm"
+              style={{ background: bg, borderColor: `${color}40` }}
             >
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Referral ID</TableHead>
-                    <TableHead>Student ID</TableHead>
-                    <TableHead>Commission</TableHead>
-                    <TableHead>Payment Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {myReferrals.map((r) => (
-                    <TableRow key={r.referralId.toString()}>
-                      <TableCell className="font-mono text-xs">
-                        #{r.referralId.toString()}
-                      </TableCell>
-                      <TableCell>Student #{r.studentId.toString()}</TableCell>
-                      <TableCell className="font-semibold text-green-700">
-                        ₹{r.commissionAmount.toString()}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${r.isPaid ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}
-                        >
-                          {r.isPaid ? "Paid" : "Pending"}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <p className="text-sm font-semibold text-foreground/70 mb-1">
+                {label} Referral
+              </p>
+              <p className="text-3xl font-extrabold mb-0.5" style={{ color }}>
+                ₹{amount}
+              </p>
+              <p className="text-xs text-foreground/50">per student enrolled</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bonus System Card */}
+      <div
+        className="rounded-2xl border p-5 shadow-sm"
+        style={{
+          background: "oklch(0.97 0.03 50)",
+          borderColor: "oklch(0.68 0.19 50 / 0.4)",
+        }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Star className="w-5 h-5" style={{ color: "oklch(0.68 0.19 50)" }} />
+          <h3 className="font-bold text-foreground">Bonus System</h3>
+        </div>
+        <p className="text-sm text-foreground/70 mb-4">
+          For every <strong>10 enrollments</strong> you complete, earn a{" "}
+          <strong style={{ color: "oklch(0.68 0.19 50)" }}>₹100 bonus</strong>!
+        </p>
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs text-foreground/60">
+            <span>Bonus Progress</span>
+            <span>
+              {bonusProgress}/10 enrollments — ₹{bonusEarned} / ₹
+              {bonusEarned + BONUS_PER_10}
+            </span>
+          </div>
+          <Progress
+            value={bonusProgressPct}
+            className="h-3"
+            data-ocid="overview.bonus.loading_state"
+          />
+          <p className="text-xs text-foreground/50">
+            {10 - bonusProgress} more enrollment
+            {10 - bonusProgress !== 1 ? "s" : ""} to unlock next ₹100 bonus
+          </p>
+        </div>
+      </div>
+
+      {/* CTA Banner */}
+      <div
+        className="rounded-2xl p-6 text-white shadow-md"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.45 0.18 262), oklch(0.55 0.22 280))",
+        }}
+      >
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold mb-1">
+              Start Earning with Openframe Education
+            </h3>
+            <p className="text-sm text-white/80">
+              Promote courses and study materials and earn commissions while
+              helping students learn.
+            </p>
+          </div>
+          <a
+            href={`https://wa.me/${WHATSAPP_NUMBER}?text=I%20want%20to%20join%20as%20a%20Field%20Executive%20for%20Openframe%20Education`}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-ocid="overview.cta.primary_button"
+          >
+            <Button className="bg-white text-foreground hover:bg-white/90 font-semibold shrink-0 gap-2">
+              <MessageCircle className="w-4 h-4 text-green-600" />
+              WhatsApp 7996401388
+            </Button>
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCommissionPlan = () => (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Commission Plan"
+        description="Detailed earnings for every plan you promote"
+      />
+
+      {/* Tier Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[
+          {
+            label: "Basic Plan Referral",
+            amount: "₹50",
+            per: "per student",
+            icon: "🥉",
+            color: "oklch(0.45 0.18 262)",
+            bg: "oklch(0.96 0.03 262)",
+          },
+          {
+            label: "Standard Plan Referral",
+            amount: "₹100",
+            per: "per student",
+            icon: "🥈",
+            color: "oklch(0.68 0.19 50)",
+            bg: "oklch(0.97 0.04 50)",
+          },
+          {
+            label: "Premium Plan Referral",
+            amount: "₹150",
+            per: "per student",
+            icon: "🥇",
+            color: "oklch(0.55 0.16 165)",
+            bg: "oklch(0.96 0.04 165)",
+          },
+          {
+            label: "Pragati Study Magazine",
+            amount: "₹50",
+            per: "per sale",
+            icon: "📖",
+            color: "oklch(0.52 0.18 145)",
+            bg: "oklch(0.96 0.04 145)",
+          },
+        ].map(({ label, amount, per, icon, color, bg }) => (
+          <div
+            key={label}
+            className="rounded-2xl border p-6 flex items-center gap-5 shadow-sm"
+            style={{ background: bg, borderColor: `${color}50` }}
+          >
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 shadow-sm"
+              style={{ background: `${color}20` }}
+            >
+              {icon}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground/70">
+                {label}
+              </p>
+              <p
+                className="text-3xl font-extrabold leading-none mt-1"
+                style={{ color }}
+              >
+                {amount}
+              </p>
+              <p className="text-xs text-foreground/50 mt-0.5">{per}</p>
             </div>
           </div>
-        );
+        ))}
+      </div>
 
-      case "commission":
-        return (
-          <div>
-            <SectionHeader
-              title="Commission Summary"
-              description="Your earnings from referrals"
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-              <div
-                className="bg-white rounded-2xl border p-6 text-center shadow-sm"
-                style={{ borderColor: "oklch(0.93 0.02 255)" }}
-              >
-                <div
-                  className="text-4xl font-bold mb-1"
-                  style={{ color: "oklch(0.45 0.18 262)" }}
+      {/* Bonus System */}
+      <div
+        className="rounded-2xl border p-6 shadow-sm"
+        style={{
+          background: "oklch(0.97 0.03 50)",
+          borderColor: "oklch(0.68 0.19 50 / 0.4)",
+        }}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp
+            className="w-5 h-5"
+            style={{ color: "oklch(0.68 0.19 50)" }}
+          />
+          <h3 className="font-bold text-foreground text-lg">Bonus System</h3>
+        </div>
+        <div
+          className="flex items-center gap-3 p-4 rounded-xl mb-5 text-sm font-medium"
+          style={{
+            background: "oklch(0.68 0.19 50 / 0.15)",
+            color: "oklch(0.45 0.18 50)",
+          }}
+        >
+          <Star className="w-4 h-4 shrink-0" />
+          For every <strong>10 enrollments</strong> → ₹100 Bonus
+        </div>
+
+        <div className="space-y-2.5">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium text-foreground/70">Bonus Earned</span>
+            <span
+              className="font-bold"
+              style={{ color: "oklch(0.68 0.19 50)" }}
+            >
+              ₹{bonusEarned} / ₹{bonusEarned + BONUS_PER_10}
+            </span>
+          </div>
+          <Progress
+            value={bonusProgressPct}
+            className="h-4"
+            data-ocid="commission.bonus.loading_state"
+          />
+          <div className="flex justify-between text-xs text-foreground/50">
+            <span>{bonusProgress} / 10 enrollments this cycle</span>
+            <span>{10 - bonusProgress} to go</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Magazine Breakdown */}
+      <div
+        className="rounded-2xl border overflow-hidden shadow-sm"
+        style={{ borderColor: "oklch(0.52 0.18 145 / 0.5)" }}
+      >
+        <div
+          className="px-6 py-3 text-white text-sm font-semibold flex items-center gap-2"
+          style={{ background: "oklch(0.52 0.18 145)" }}
+        >
+          <BookOpen className="w-4 h-4" />
+          Pragati Study Magazine – Commission Breakdown
+        </div>
+        <div className="bg-white p-5 space-y-3">
+          {[
+            {
+              label: "Magazine Price",
+              value: "₹200",
+              color: "oklch(0.45 0.18 262)",
+              bg: "oklch(0.96 0.03 262)",
+            },
+            {
+              label: "Your Commission",
+              value: "₹50 per sale",
+              color: "oklch(0.52 0.18 145)",
+              bg: "oklch(0.96 0.04 145)",
+            },
+            {
+              label: "Company Revenue",
+              value: "₹150 per sale",
+              color: "oklch(0.68 0.19 50)",
+              bg: "oklch(0.97 0.04 50)",
+            },
+          ].map(({ label, value, color, bg }) => (
+            <div
+              key={label}
+              className="flex items-center justify-between px-4 py-3.5 rounded-xl"
+              style={{ background: bg }}
+            >
+              <span className="text-sm font-medium text-foreground/70">
+                {label}
+              </span>
+              <span className="text-base font-bold" style={{ color }}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPragatiMagazine = () => (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Pragati Study Magazine Promotion"
+        description="Promote the magazine and earn ₹50 commission per sale"
+      />
+
+      {/* Hero Card */}
+      <div
+        className="rounded-2xl border p-6 shadow-sm flex flex-col sm:flex-row gap-5 items-start"
+        style={{
+          background: "oklch(0.96 0.04 145)",
+          borderColor: "oklch(0.52 0.18 145 / 0.4)",
+        }}
+      >
+        <div
+          className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shrink-0"
+          style={{ background: "oklch(0.52 0.18 145 / 0.2)" }}
+        >
+          📚
+        </div>
+        <div className="flex-1">
+          <h3 className="text-xl font-extrabold text-foreground mb-1">
+            Pragati Study Magazine
+          </h3>
+          <p className="text-sm text-foreground/60 mb-3">
+            Affordable Learning for Every Student
+          </p>
+          <div className="flex flex-wrap gap-3 mb-4">
+            <div
+              className="px-4 py-2 rounded-xl text-sm font-bold"
+              style={{
+                background: "oklch(0.45 0.18 262 / 0.15)",
+                color: "oklch(0.45 0.18 262)",
+              }}
+            >
+              Price: ₹200
+            </div>
+            <div
+              className="px-4 py-2 rounded-xl text-sm font-bold"
+              style={{
+                background: "oklch(0.52 0.18 145 / 0.15)",
+                color: "oklch(0.52 0.18 145)",
+              }}
+            >
+              Your Commission: ₹50
+            </div>
+          </div>
+          <a
+            href={`https://wa.me/${WHATSAPP_NUMBER}?text=Check%20out%20Pragati%20Study%20Magazine%20by%20Openframe%20Education%20-%20only%20₹200!`}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-ocid="pragati.promote.primary_button"
+          >
+            <Button
+              className="gap-2 text-white font-semibold"
+              style={{ background: "oklch(0.52 0.18 145)" }}
+            >
+              <MessageCircle className="w-4 h-4" />
+              Promote / Share Link
+            </Button>
+          </a>
+        </div>
+      </div>
+
+      {/* Subjects */}
+      <div
+        className="bg-white rounded-2xl border p-6 shadow-sm"
+        style={{ borderColor: "oklch(0.93 0.02 255)" }}
+      >
+        <h3 className="font-bold text-foreground mb-4">Subjects Covered</h3>
+        <div className="space-y-2.5">
+          {[
+            { subject: "General Knowledge", icon: "🌍" },
+            { subject: "Mathematics", icon: "🔢" },
+            { subject: "Science", icon: "🔬" },
+            { subject: "English", icon: "📝" },
+            { subject: "Social Studies", icon: "🗺️" },
+          ].map(({ subject, icon }) => (
+            <div
+              key={subject}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl"
+              style={{ background: "oklch(0.97 0.02 145)" }}
+            >
+              <span className="text-lg">{icon}</span>
+              <span className="text-sm font-medium text-foreground/80">
+                {subject}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Why sell */}
+      <div
+        className="bg-white rounded-2xl border p-6 shadow-sm"
+        style={{ borderColor: "oklch(0.93 0.02 255)" }}
+      >
+        <h3 className="font-bold text-foreground mb-4">
+          Why Promote Pragati Magazine?
+        </h3>
+        <ul className="space-y-2">
+          {[
+            "Easy to sell – affordable for every student",
+            "High demand in schools and tuition centers",
+            "Earn ₹50 commission on every sale",
+            "Opportunity to earn daily income",
+            "Helps students improve academic knowledge",
+          ].map((item) => (
+            <li
+              key={item}
+              className="flex items-start gap-2.5 text-sm text-foreground/70"
+            >
+              <Check
+                className="w-4 h-4 shrink-0 mt-0.5"
+                style={{ color: "oklch(0.52 0.18 145)" }}
+              />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+
+  const renderCoursePrograms = () => (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Course Programs – Promote & Earn"
+        description="Share these courses with students and earn referral commissions"
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {COURSES.map((course, idx) => (
+          <div
+            key={course.label}
+            className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col"
+            style={{ borderColor: "oklch(0.93 0.02 255)" }}
+            data-ocid={`course.item.${idx + 1}`}
+          >
+            {/* Header */}
+            <div
+              className="px-5 pt-5 pb-3"
+              style={{ background: `${course.color}12` }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Badge
+                  className="text-xs font-semibold text-white border-0"
+                  style={{ background: course.color }}
                 >
-                  ₹{totalEarned}
-                </div>
-                <p className="text-sm text-muted-foreground">Total Earned</p>
+                  {course.badge}
+                </Badge>
               </div>
-              <div
-                className="bg-white rounded-2xl border p-6 text-center shadow-sm"
-                style={{ borderColor: "oklch(0.93 0.02 255)" }}
-              >
-                <div
-                  className="text-4xl font-bold mb-1"
-                  style={{ color: "oklch(0.55 0.16 165)" }}
-                >
-                  ₹{paidEarned}
-                </div>
-                <p className="text-sm text-muted-foreground">Paid Out</p>
-              </div>
-              <div
-                className="bg-white rounded-2xl border p-6 text-center shadow-sm"
-                style={{ borderColor: "oklch(0.93 0.02 255)" }}
-              >
-                <div
-                  className="text-4xl font-bold mb-1"
-                  style={{ color: "oklch(0.68 0.19 50)" }}
-                >
-                  ₹{pendingEarned}
-                </div>
-                <p className="text-sm text-muted-foreground">Pending Payment</p>
-              </div>
+              <h3 className="text-base font-extrabold text-foreground">
+                {course.label}
+              </h3>
             </div>
 
-            <div
-              className="bg-white rounded-2xl border p-6 shadow-sm"
-              style={{ borderColor: "oklch(0.93 0.02 255)" }}
-            >
-              <h3 className="font-semibold text-foreground mb-4">
-                Commission Structure
-              </h3>
-              <div className="space-y-3">
-                {[
-                  {
-                    tier: "Basic Plan Referral",
-                    amount: "₹50/student",
-                    color: "oklch(0.45 0.18 262)",
-                  },
-                  {
-                    tier: "Standard Plan Referral",
-                    amount: "₹100/student",
-                    color: "oklch(0.68 0.19 50)",
-                  },
-                  {
-                    tier: "Premium Plan Referral",
-                    amount: "₹150/student",
-                    color: "oklch(0.55 0.16 165)",
-                  },
-                  {
-                    tier: "Bonus: every 10 enrollments",
-                    amount: `₹100 bonus (earned: ₹${bonusEarned})`,
-                    color: "oklch(0.62 0.2 320)",
-                  },
-                ].map(({ tier, amount, color }) => (
-                  <div
-                    key={tier}
-                    className="flex items-center justify-between py-3 border-b last:border-0"
-                    style={{ borderColor: "oklch(0.95 0.01 255)" }}
+            {/* Subjects */}
+            <div className="px-5 py-4 flex-1">
+              <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wide mb-2.5">
+                Subjects
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {course.subjects.map((sub) => (
+                  <span
+                    key={sub}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium"
+                    style={{
+                      background: `${course.color}15`,
+                      color: course.color,
+                    }}
                   >
-                    <span className="text-sm text-foreground/80">{tier}</span>
-                    <span className="font-bold text-sm" style={{ color }}>
-                      {amount}
-                    </span>
-                  </div>
+                    {sub}
+                  </span>
                 ))}
               </div>
             </div>
-          </div>
-        );
 
-      case "add-referral":
-        return (
-          <div>
-            <SectionHeader
-              title="Add New Referral"
-              description="Add a new student referral"
-            />
-            <div className="max-w-md">
-              <div
-                className="bg-white rounded-2xl border p-6 shadow-sm"
-                style={{ borderColor: "oklch(0.93 0.02 255)" }}
-              >
-                <div
-                  className="p-3 rounded-xl mb-5 text-sm"
-                  style={{ background: "oklch(0.95 0.04 255)" }}
+            {/* Fee + CTA */}
+            <div
+              className="px-5 py-4 border-t flex items-center justify-between"
+              style={{ borderColor: "oklch(0.95 0.01 255)" }}
+            >
+              <div>
+                <p className="text-xs text-foreground/50">Monthly Fee</p>
+                <p
+                  className="text-xl font-extrabold"
+                  style={{ color: course.color }}
                 >
-                  💰 You'll earn{" "}
-                  <strong>
-                    ₹{PLAN_COMMISSION[Number(referralForm.planId)] ?? 100}{" "}
-                    commission
-                  </strong>{" "}
-                  when this student enrolls! (Basic ₹50 / Standard ₹100 /
-                  Premium ₹150 + ₹100 bonus every 10 enrollments)
-                </div>
-                <form onSubmit={handleAddReferral} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label>Student Name *</Label>
-                    <Input
-                      value={referralForm.studentName}
-                      onChange={(e) =>
-                        setReferralForm((p) => ({
-                          ...p,
-                          studentName: e.target.value,
-                        }))
-                      }
-                      placeholder="Student's full name"
-                      className="rounded-xl"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Class Level *</Label>
-                    <Select
-                      onValueChange={(v) =>
-                        setReferralForm((p) => ({ ...p, classLevel: v }))
-                      }
-                    >
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue placeholder="Select class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {classLevels.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Plan *</Label>
-                    <Select
-                      value={referralForm.planId}
-                      onValueChange={(v) =>
-                        setReferralForm((p) => ({ ...p, planId: v }))
-                      }
-                    >
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue placeholder="Select plan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">
-                          Basic Plan – ₹50 commission
-                        </SelectItem>
-                        <SelectItem value="2">
-                          Standard Plan – ₹100 commission
-                        </SelectItem>
-                        <SelectItem value="3">
-                          Premium Plan – ₹150 commission
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Mobile Number *</Label>
-                    <Input
-                      value={referralForm.mobile}
-                      onChange={(e) =>
-                        setReferralForm((p) => ({
-                          ...p,
-                          mobile: e.target.value,
-                        }))
-                      }
-                      placeholder="+91 XXXXX XXXXX"
-                      type="tel"
-                      className="rounded-xl"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>City / Village</Label>
-                    <Input
-                      value={referralForm.cityVillage}
-                      onChange={(e) =>
-                        setReferralForm((p) => ({
-                          ...p,
-                          cityVillage: e.target.value,
-                        }))
-                      }
-                      placeholder="City or village name"
-                      className="rounded-xl"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={createReferral.isPending}
-                    className="w-full text-white border-0"
-                    style={{ background: "oklch(0.62 0.2 320)" }}
-                  >
-                    {createReferral.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : null}
-                    Submit Referral
-                  </Button>
-                </form>
+                  ₹{course.fee}
+                  <span className="text-xs font-normal text-foreground/50">
+                    /mo
+                  </span>
+                </p>
               </div>
+              <a
+                href={`https://wa.me/${WHATSAPP_NUMBER}?text=I%20want%20to%20enroll%20in%20${encodeURIComponent(course.label)}%20at%20Openframe%20Education`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-ocid={`course.enroll.primary_button.${idx + 1}`}
+              >
+                <Button
+                  size="sm"
+                  className="text-white font-semibold text-xs"
+                  style={{ background: course.color }}
+                >
+                  Enroll Now
+                </Button>
+              </a>
             </div>
           </div>
-        );
+        ))}
+      </div>
+    </div>
+  );
 
-      case "enrolled":
-        return (
-          <div>
-            <SectionHeader
-              title="My Enrolled Students"
-              description="Students you referred who have enrolled"
+  const renderAddReferral = () => (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Add New Referral"
+        description="Add a student referral and track your commission"
+      />
+
+      <div className="max-w-lg">
+        {/* Commission Info Banner */}
+        <div
+          className="rounded-xl px-4 py-3.5 mb-5 text-sm flex items-start gap-2.5"
+          style={{
+            background: "oklch(0.96 0.04 262)",
+            color: "oklch(0.30 0.12 262)",
+          }}
+          data-ocid="referral.commission.panel"
+        >
+          <IndianRupee className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            You'll earn{" "}
+            <strong>
+              ₹{PLAN_COMMISSION[Number(referralForm.planId)] ?? 100} commission
+            </strong>{" "}
+            when this student enrolls!{" "}
+            <span className="opacity-75">
+              (Basic ₹50 / Standard ₹100 / Premium ₹150 + ₹100 bonus every 10
+              enrollments, Pragati Magazine ₹50)
+            </span>
+          </span>
+        </div>
+
+        <form
+          onSubmit={handleAddReferral}
+          className="bg-white rounded-2xl border p-6 shadow-sm space-y-4"
+          style={{ borderColor: "oklch(0.93 0.02 255)" }}
+        >
+          {/* Student Name */}
+          <div className="space-y-1.5">
+            <Label htmlFor="studentName">Student Name *</Label>
+            <Input
+              id="studentName"
+              value={referralForm.studentName}
+              onChange={(e) =>
+                setReferralForm((p) => ({ ...p, studentName: e.target.value }))
+              }
+              placeholder="Student's full name"
+              className="rounded-xl"
+              required
+              data-ocid="referral.student.input"
             />
-            <div
-              className="bg-white rounded-2xl border shadow-sm overflow-hidden"
-              style={{ borderColor: "oklch(0.93 0.02 255)" }}
+          </div>
+
+          {/* Parent Name */}
+          <div className="space-y-1.5">
+            <Label htmlFor="parentName">Parent Name</Label>
+            <Input
+              id="parentName"
+              value={referralForm.parentName}
+              onChange={(e) =>
+                setReferralForm((p) => ({ ...p, parentName: e.target.value }))
+              }
+              placeholder="Parent's name"
+              className="rounded-xl"
+              data-ocid="referral.parent.input"
+            />
+          </div>
+
+          {/* Class Level */}
+          <div className="space-y-1.5">
+            <Label>Class Level *</Label>
+            <Select
+              onValueChange={(v) =>
+                setReferralForm((p) => ({ ...p, classLevel: v }))
+              }
+              value={referralForm.classLevel || undefined}
             >
+              <SelectTrigger
+                className="rounded-xl"
+                data-ocid="referral.class.select"
+              >
+                <SelectValue placeholder="Select class" />
+              </SelectTrigger>
+              <SelectContent>
+                {classLevels.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Plan */}
+          <div className="space-y-1.5">
+            <Label>Plan *</Label>
+            <Select
+              value={referralForm.planId}
+              onValueChange={(v) =>
+                setReferralForm((p) => ({ ...p, planId: v }))
+              }
+            >
+              <SelectTrigger
+                className="rounded-xl"
+                data-ocid="referral.plan.select"
+              >
+                <SelectValue placeholder="Select plan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Basic Plan – ₹50 commission</SelectItem>
+                <SelectItem value="2">
+                  Standard Plan – ₹100 commission
+                </SelectItem>
+                <SelectItem value="3">
+                  Premium Plan – ₹150 commission
+                </SelectItem>
+                <SelectItem value="4">
+                  Pragati Magazine – ₹50 commission
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Mobile */}
+          <div className="space-y-1.5">
+            <Label htmlFor="mobile">Mobile Number *</Label>
+            <Input
+              id="mobile"
+              value={referralForm.mobile}
+              onChange={(e) =>
+                setReferralForm((p) => ({ ...p, mobile: e.target.value }))
+              }
+              placeholder="+91 XXXXX XXXXX"
+              type="tel"
+              className="rounded-xl"
+              required
+              data-ocid="referral.mobile.input"
+            />
+          </div>
+
+          {/* City / Village */}
+          <div className="space-y-1.5">
+            <Label htmlFor="cityVillage">City / Village</Label>
+            <Input
+              id="cityVillage"
+              value={referralForm.cityVillage}
+              onChange={(e) =>
+                setReferralForm((p) => ({ ...p, cityVillage: e.target.value }))
+              }
+              placeholder="City or village name"
+              className="rounded-xl"
+              data-ocid="referral.city.input"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={createReferral.isPending}
+            className="w-full text-white border-0 font-semibold"
+            style={{ background: "oklch(0.62 0.2 320)" }}
+            data-ocid="referral.submit_button"
+          >
+            {createReferral.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <UserPlus className="w-4 h-4 mr-2" />
+            )}
+            {createReferral.isPending ? "Submitting..." : "Submit Referral"}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+
+  // ─── My Leads (localStorage-backed) ────────────────────────────────────────
+  const renderMyLeads = () => {
+    const totalLeads = myLeads.length;
+    const approved = myLeads.filter((l) => l.status === "Approved").length;
+    const pending = myLeads.filter((l) => l.status === "Pending").length;
+    const totalCommission = myLeads
+      .filter((l) => l.commissionPaid)
+      .reduce((s, l) => s + l.commissionAmount, 0);
+
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="My Leads"
+          description="Students you've enrolled through your referral link or Add Referral form"
+        />
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatsCard
+            title="Total Leads"
+            value={totalLeads}
+            icon={<ClipboardList className="w-5 h-5" />}
+            color="oklch(0.45 0.18 262)"
+          />
+          <StatsCard
+            title="Approved"
+            value={approved}
+            icon={<Check className="w-5 h-5" />}
+            color="oklch(0.55 0.16 165)"
+          />
+          <StatsCard
+            title="Pending"
+            value={pending}
+            icon={<Loader2 className="w-5 h-5" />}
+            color="oklch(0.68 0.19 50)"
+          />
+          <StatsCard
+            title="Commission Earned"
+            value={`₹${totalCommission}`}
+            icon={<IndianRupee className="w-5 h-5" />}
+            color="oklch(0.62 0.2 320)"
+          />
+        </div>
+
+        {/* Table or Empty State */}
+        {myLeads.length === 0 ? (
+          <div
+            className="rounded-2xl border p-12 flex flex-col items-center justify-center text-center bg-white"
+            style={{ borderColor: "oklch(0.93 0.02 255)" }}
+            data-ocid="leads.empty_state"
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+              style={{ background: "oklch(0.96 0.03 262)" }}
+            >
+              <ClipboardList
+                className="w-8 h-8"
+                style={{ color: "oklch(0.45 0.18 262)" }}
+              />
+            </div>
+            <h3 className="text-base font-bold text-foreground mb-1">
+              No leads yet
+            </h3>
+            <p className="text-sm text-foreground/60 mb-5 max-w-xs">
+              Share your referral link or add a student via the Add Referral
+              form.
+            </p>
+            <Button
+              onClick={() => setActiveSection("add-referral")}
+              className="gap-2 text-white font-semibold"
+              style={{ background: "oklch(0.45 0.18 262)" }}
+              data-ocid="leads.add.primary_button"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Referral
+            </Button>
+          </div>
+        ) : (
+          <div
+            className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+            style={{ borderColor: "oklch(0.93 0.02 255)" }}
+            data-ocid="leads.table"
+          >
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Student</TableHead>
+                    <TableHead>#</TableHead>
+                    <TableHead>Student Name</TableHead>
                     <TableHead>Class</TableHead>
-                    <TableHead>Syllabus</TableHead>
+                    <TableHead>Course</TableHead>
+                    <TableHead>City</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Your Commission</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead>Commission</TableHead>
+                    <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {SAMPLE_STUDENTS.slice(0, 4).map((s) => (
-                    <TableRow key={s.studentId.toString()}>
-                      <TableCell className="font-medium">{s.name}</TableCell>
-                      <TableCell>{s.classLevel}</TableCell>
-                      <TableCell>{s.syllabus}</TableCell>
+                  {myLeads.map((lead, idx) => (
+                    <TableRow
+                      key={lead.leadId}
+                      data-ocid={`leads.item.${idx + 1}`}
+                    >
+                      <TableCell className="font-mono text-xs text-foreground/50">
+                        #{idx + 1}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {lead.studentName}
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/70">
+                        {lead.classLevel}
+                      </TableCell>
                       <TableCell>
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                          className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                          style={{
+                            background: "oklch(0.96 0.03 262)",
+                            color: "oklch(0.45 0.18 262)",
+                          }}
                         >
-                          {s.isActive ? "Active" : "Inactive"}
+                          {lead.courseSelected}
                         </span>
                       </TableCell>
-                      <TableCell className="font-semibold text-green-700">
-                        ₹{PLAN_COMMISSION[Number(s.enrolledPlanId)] ?? 100}
+                      <TableCell className="text-sm">
+                        {lead.cityVillage || "—"}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            lead.status === "Approved"
+                              ? "bg-green-100 text-green-800"
+                              : lead.status === "Rejected"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {lead.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            lead.paymentStatus === "Received"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {lead.paymentStatus}
+                        </span>
+                      </TableCell>
+                      <TableCell
+                        className="font-semibold"
+                        style={{
+                          color: lead.commissionPaid
+                            ? "oklch(0.45 0.18 165)"
+                            : "oklch(0.6 0.1 255)",
+                        }}
+                      >
+                        ₹{lead.commissionAmount}
+                        {lead.commissionPaid && (
+                          <span className="ml-1 text-xs font-normal text-green-600">
+                            ✓ Paid
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-foreground/50">
+                        {new Date(lead.createdAt).toLocaleDateString("en-IN")}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -469,10 +1261,474 @@ export function FieldExecDashboard() {
               </Table>
             </div>
           </div>
-        );
+        )}
+      </div>
+    );
+  };
 
+  const renderShareLink = () => (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Share Your Referral Link"
+        description="Every student who enrolls through your link earns you commission"
+      />
+
+      <div className="max-w-lg space-y-5">
+        {/* Referral Code */}
+        <div
+          className="bg-white rounded-2xl border p-6 shadow-sm"
+          style={{ borderColor: "oklch(0.93 0.02 255)" }}
+        >
+          <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wide mb-2">
+            Your Referral Code
+          </p>
+          <div
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-lg font-mono font-bold"
+            style={{
+              background: "oklch(0.96 0.04 262)",
+              color: "oklch(0.45 0.18 262)",
+            }}
+          >
+            {REFERRAL_CODE}
+          </div>
+        </div>
+
+        {/* Link Box */}
+        <div
+          className="bg-white rounded-2xl border p-6 shadow-sm"
+          style={{ borderColor: "oklch(0.93 0.02 255)" }}
+        >
+          <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wide mb-2">
+            Your Referral Link
+          </p>
+          <div
+            className="flex items-center gap-2 px-4 py-3 rounded-xl font-mono text-sm break-all mb-4"
+            style={{
+              background: "oklch(0.97 0.02 262)",
+              color: "oklch(0.30 0.12 262)",
+            }}
+            data-ocid="share.link.panel"
+          >
+            {REFERRAL_LINK}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <Button
+              onClick={handleCopyLink}
+              variant="outline"
+              className="flex-1 gap-2 font-semibold"
+              data-ocid="share.copy.button"
+            >
+              {linkCopied ? (
+                <>
+                  <Check className="w-4 h-4 text-green-600" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  Copy Link
+                </>
+              )}
+            </Button>
+
+            <a
+              href={`https://wa.me/?text=Join%20Openframe%20Education%20using%20my%20referral%20link:%20${REFERRAL_LINK}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1"
+              data-ocid="share.whatsapp.primary_button"
+            >
+              <Button
+                className="w-full gap-2 text-white font-semibold"
+                style={{ background: "oklch(0.55 0.17 145)" }}
+              >
+                <MessageCircle className="w-4 h-4" />
+                Share on WhatsApp
+              </Button>
+            </a>
+
+            <a
+              href={`https://t.me/share/url?url=${REFERRAL_LINK}&text=Join%20Openframe%20Education!`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1"
+              data-ocid="share.telegram.primary_button"
+            >
+              <Button
+                className="w-full gap-2 text-white font-semibold"
+                style={{ background: "oklch(0.55 0.19 230)" }}
+              >
+                <Send className="w-4 h-4" />
+                Share on Telegram
+              </Button>
+            </a>
+          </div>
+        </div>
+
+        {/* Tips */}
+        <div
+          className="rounded-2xl border p-5"
+          style={{
+            background: "oklch(0.97 0.03 262)",
+            borderColor: "oklch(0.45 0.18 262 / 0.3)",
+          }}
+        >
+          <p className="text-sm font-semibold text-foreground/70 mb-2.5">
+            💡 Tips to get more referrals
+          </p>
+          <ul className="space-y-1.5">
+            {[
+              "Share in WhatsApp groups of parents and students",
+              "Post in local community Facebook/Telegram groups",
+              "Distribute the link at tuition centers & schools",
+              "Tell friends about affordable monthly plans (₹250–₹500)",
+            ].map((tip) => (
+              <li
+                key={tip}
+                className="flex items-start gap-2 text-xs text-foreground/60"
+              >
+                <span className="mt-0.5">•</span>
+                {tip}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderMyReferrals = () => {
+    const pending = localReferrals.filter((r) => !r.isPaid).length;
+    const totalRef = localReferrals.length;
+    const enrolled = localReferrals.filter((r) => r.isPaid).length;
+    const refTotal = localReferrals.reduce((s, r) => s + r.commission, 0);
+
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="My Referrals"
+          description="Students you've referred to OpenFrame Education"
+        />
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatsCard
+            title="Total Referrals"
+            value={totalRef}
+            icon={<Share2 className="w-5 h-5" />}
+            color="oklch(0.62 0.2 320)"
+          />
+          <StatsCard
+            title="Enrolled"
+            value={enrolled}
+            icon={<Check className="w-5 h-5" />}
+            color="oklch(0.55 0.16 165)"
+          />
+          <StatsCard
+            title="Pending"
+            value={pending}
+            icon={<Loader2 className="w-5 h-5" />}
+            color="oklch(0.68 0.19 50)"
+          />
+          <StatsCard
+            title="Total Earned"
+            value={`₹${refTotal}`}
+            icon={<IndianRupee className="w-5 h-5" />}
+            color="oklch(0.45 0.18 262)"
+          />
+        </div>
+
+        {/* Table or Empty State */}
+        {localReferrals.length === 0 ? (
+          <div
+            className="rounded-2xl border p-12 flex flex-col items-center justify-center text-center"
+            style={{ borderColor: "oklch(0.93 0.02 255)", background: "white" }}
+            data-ocid="referrals.empty_state"
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+              style={{ background: "oklch(0.96 0.03 262)" }}
+            >
+              <Users
+                className="w-8 h-8"
+                style={{ color: "oklch(0.45 0.18 262)" }}
+              />
+            </div>
+            <h3 className="text-base font-bold text-foreground mb-1">
+              No referrals yet
+            </h3>
+            <p className="text-sm text-foreground/60 mb-5 max-w-xs">
+              Add your first referral to start earning commissions from course
+              and magazine promotions.
+            </p>
+            <Button
+              onClick={() => setActiveSection("add-referral")}
+              className="gap-2 text-white font-semibold"
+              style={{ background: "oklch(0.62 0.2 320)" }}
+              data-ocid="referrals.add.primary_button"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add First Referral
+            </Button>
+          </div>
+        ) : (
+          <div
+            className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+            style={{ borderColor: "oklch(0.93 0.02 255)" }}
+            data-ocid="referrals.table"
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Commission</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {localReferrals.map((r, idx) => (
+                  <TableRow key={r.id} data-ocid={`referrals.item.${idx + 1}`}>
+                    <TableCell className="font-mono text-xs text-foreground/50">
+                      #{idx + 1}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {r.studentName}
+                    </TableCell>
+                    <TableCell className="text-sm text-foreground/70">
+                      {r.classLevel}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                        style={{
+                          background: "oklch(0.96 0.03 262)",
+                          color: "oklch(0.45 0.18 262)",
+                        }}
+                      >
+                        {r.plan}
+                      </span>
+                    </TableCell>
+                    <TableCell
+                      className="font-semibold"
+                      style={{ color: "oklch(0.45 0.18 165)" }}
+                    >
+                      ₹{r.commission}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          r.isPaid
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {r.isPaid ? "Paid" : "Pending"}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── Withdraw Earnings ──────────────────────────────────────────────────────
+  const renderWithdraw = () => (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Withdraw Earnings"
+        description="Request a payout for your commission earnings"
+      />
+
+      {/* Balance Card */}
+      <div
+        className="rounded-2xl border p-6 shadow-sm"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.45 0.18 262), oklch(0.55 0.22 280))",
+        }}
+      >
+        <p className="text-sm font-semibold text-white/70 mb-1">
+          Available Balance
+        </p>
+        <p className="text-4xl font-extrabold text-white mb-3">
+          ₹{availableBalance}
+        </p>
+        <div className="flex gap-4 text-xs text-white/70">
+          <span>Total Earned: ₹{totalEarned}</span>
+          <span>·</span>
+          <span>Total Withdrawn: ₹{feAccount?.totalWithdrawn ?? 0}</span>
+        </div>
+      </div>
+
+      {/* Withdrawal Form */}
+      {availableBalance > 0 ? (
+        <form
+          onSubmit={handleWithdraw}
+          className="bg-white rounded-2xl border p-6 shadow-sm space-y-4 max-w-lg"
+          style={{ borderColor: "oklch(0.93 0.02 255)" }}
+          data-ocid="withdraw.form.panel"
+        >
+          <h3 className="font-bold text-foreground">Request Withdrawal</h3>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="withdrawAmount">
+              Amount (₹) *{" "}
+              <span className="text-xs text-foreground/50 font-normal">
+                (max ₹{availableBalance})
+              </span>
+            </Label>
+            <Input
+              id="withdrawAmount"
+              type="number"
+              min={1}
+              max={availableBalance}
+              value={withdrawForm.amount}
+              onChange={(e) =>
+                setWithdrawForm((p) => ({ ...p, amount: e.target.value }))
+              }
+              placeholder="Enter amount"
+              className="rounded-xl"
+              required
+              data-ocid="withdraw.amount.input"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="upiDetails">UPI ID / Bank Details *</Label>
+            <Textarea
+              id="upiDetails"
+              value={withdrawForm.upiDetails}
+              onChange={(e) =>
+                setWithdrawForm((p) => ({ ...p, upiDetails: e.target.value }))
+              }
+              placeholder="e.g. yourname@upi or Bank: HDFC, A/c 1234567890, IFSC: HDFC0001234"
+              className="rounded-xl resize-none"
+              rows={3}
+              required
+              data-ocid="withdraw.upi.textarea"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full text-white font-semibold gap-2"
+            style={{ background: "oklch(0.45 0.18 262)" }}
+            data-ocid="withdraw.submit_button"
+          >
+            <Wallet className="w-4 h-4" />
+            Request Withdrawal
+          </Button>
+        </form>
+      ) : (
+        <div
+          className="rounded-2xl border p-8 text-center bg-white"
+          style={{ borderColor: "oklch(0.93 0.02 255)" }}
+          data-ocid="withdraw.empty_state"
+        >
+          <p className="text-foreground/60 text-sm">
+            No balance available for withdrawal. Earn commissions by referring
+            students.
+          </p>
+        </div>
+      )}
+
+      {/* Withdrawal History */}
+      {myWithdrawals.length > 0 && (
+        <div>
+          <h3 className="font-bold text-foreground mb-3">Withdrawal History</h3>
+          <div
+            className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+            style={{ borderColor: "oklch(0.93 0.02 255)" }}
+            data-ocid="withdraw.table"
+          >
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>UPI / Bank</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Admin Note</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {myWithdrawals.map((w, idx) => (
+                    <TableRow
+                      key={w.requestId}
+                      data-ocid={`withdraw.item.${idx + 1}`}
+                    >
+                      <TableCell className="font-mono text-xs text-foreground/50">
+                        #{idx + 1}
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        ₹{w.amount}
+                      </TableCell>
+                      <TableCell className="text-xs text-foreground/70 max-w-[160px] truncate">
+                        {w.upiDetails}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            w.status === "Approved"
+                              ? "bg-green-100 text-green-800"
+                              : w.status === "Rejected"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {w.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-foreground/50">
+                        {new Date(w.createdAt).toLocaleDateString("en-IN")}
+                      </TableCell>
+                      <TableCell className="text-xs text-foreground/60">
+                        {w.adminNote || "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case "overview":
+        return renderOverview();
+      case "commission-plan":
+        return renderCommissionPlan();
+      case "pragati-magazine":
+        return renderPragatiMagazine();
+      case "course-programs":
+        return renderCoursePrograms();
+      case "add-referral":
+        return renderAddReferral();
+      case "my-leads":
+        return renderMyLeads();
+      case "share-link":
+        return renderShareLink();
+      case "my-referrals":
+        return renderMyReferrals();
+      case "withdraw":
+        return renderWithdraw();
       default:
-        return null;
+        return renderOverview();
     }
   };
 

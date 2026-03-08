@@ -6,8 +6,10 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
+import { EnrollmentFormPage } from "./pages/EnrollmentFormPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
+import { PragatiPage } from "./pages/PragatiPage";
 import { AdminDashboard } from "./pages/dashboards/AdminDashboard";
 import { FieldExecDashboard } from "./pages/dashboards/FieldExecDashboard";
 import { ParentDashboard } from "./pages/dashboards/ParentDashboard";
@@ -67,6 +69,18 @@ const fieldExecRoute = createRoute({
   component: FieldExecDashboard,
 });
 
+const pragatiRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/pragati",
+  component: PragatiPage,
+});
+
+const enrollRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/enroll",
+  component: EnrollmentFormPage,
+});
+
 // Route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -76,6 +90,8 @@ const routeTree = rootRoute.addChildren([
   parentRoute,
   teacherRoute,
   fieldExecRoute,
+  pragatiRoute,
+  enrollRoute,
 ]);
 
 // Router
