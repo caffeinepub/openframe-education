@@ -46,16 +46,19 @@ import { useCreateReferral } from "../../hooks/useQueries";
 import type {
   EnrollmentLead,
   FieldExecAccount,
+  MagazineOrder,
   WithdrawalRequest,
 } from "../../utils/referralStore";
 import {
   BONUS_PER_10,
   COMMISSION_MAP,
   ensureDefaultFEAccount,
+  getFEAccounts,
   getFEByCode,
   getLeads,
   getWithdrawals,
   saveLead,
+  saveMagazineOrder,
   saveWithdrawal,
 } from "../../utils/referralStore";
 
@@ -69,7 +72,6 @@ const PLAN_COMMISSION: Record<number, number> = {
   1: 50,
   2: 100,
   3: 150,
-  4: 50,
 };
 
 // ─── Nav Items ────────────────────────────────────────────────────────────────
@@ -95,8 +97,8 @@ const navItems = [
     icon: <GraduationCap className="w-4 h-4" />,
   },
   {
-    id: "add-referral",
-    label: "Add Referral",
+    id: "enroll-student",
+    label: "Enroll Student",
     icon: <UserPlus className="w-4 h-4" />,
   },
   {
@@ -113,6 +115,11 @@ const navItems = [
     id: "my-referrals",
     label: "My Referrals",
     icon: <Users className="w-4 h-4" />,
+  },
+  {
+    id: "leaderboard",
+    label: "Leaderboard",
+    icon: <TrendingUp className="w-4 h-4" />,
   },
   {
     id: "withdraw",
@@ -183,6 +190,7 @@ export function FieldExecDashboard() {
   const [feAccount, setFeAccount] = useState<FieldExecAccount | null>(null);
   const [myLeads, setMyLeads] = useState<EnrollmentLead[]>([]);
   const [myWithdrawals, setMyWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [allFEAccounts, setAllFEAccounts] = useState<FieldExecAccount[]>([]);
 
   const [referralForm, setReferralForm] = useState({
     studentName: "",
@@ -191,6 +199,14 @@ export function FieldExecDashboard() {
     planId: "2",
     mobile: "",
     cityVillage: "",
+  });
+
+  // Magazine order form
+  const [magazineForm, setMagazineForm] = useState({
+    studentName: "",
+    mobile: "",
+    address: "",
+    quantity: "1",
   });
 
   // Withdraw form
@@ -206,6 +222,7 @@ export function FieldExecDashboard() {
     const acc = ensureDefaultFEAccount();
     setFeAccount(acc);
     refreshData(acc);
+    setAllFEAccounts(getFEAccounts());
   }, []);
 
   const refreshData = (acc?: FieldExecAccount) => {
@@ -221,6 +238,8 @@ export function FieldExecDashboard() {
       (w) => w.feAccountId === (currentAcc?.feAccountId ?? "FE1001"),
     );
     setMyWithdrawals(myW);
+
+    setAllFEAccounts(getFEAccounts());
   };
 
   // ─── Derived stats from localStorage account ──────────────────────────────
@@ -230,7 +249,7 @@ export function FieldExecDashboard() {
   const bonusEarned = feAccount?.bonusEarned ?? 0;
   const totalEarned = feAccount?.totalEarned ?? 0;
 
-  // Legacy local referrals (from Add Referral form — kept for existing UX)
+  // Legacy local referrals (kept for existing UX)
   const magazineSales = localReferrals.filter(
     (r) => r.plan === "Pragati Magazine",
   ).length;
@@ -240,12 +259,11 @@ export function FieldExecDashboard() {
   const planLabel = (planId: string) => {
     if (planId === "1") return "Basic";
     if (planId === "3") return "Premium";
-    if (planId === "4") return "Pragati Magazine";
     return "Standard";
   };
 
-  // ─── Handle Add Referral ────────────────────────────────────────────────────
-  const handleAddReferral = async (e: React.FormEvent) => {
+  // ─── Handle Enroll Student ──────────────────────────────────────────────────
+  const handleEnrollStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     const commission = PLAN_COMMISSION[Number(referralForm.planId)] ?? 100;
     const plan = planLabel(referralForm.planId);
@@ -299,7 +317,7 @@ export function FieldExecDashboard() {
     setLocalReferrals((prev) => [...prev, newReferral]);
 
     toast.success(
-      `Referral added! You'll earn ₹${commission} commission (${plan} Plan).`,
+      `Student enrolled! You'll earn ₹${commission} commission (${plan} Plan).`,
     );
 
     setReferralForm({
@@ -309,6 +327,38 @@ export function FieldExecDashboard() {
       planId: "2",
       mobile: "",
       cityVillage: "",
+    });
+  };
+
+  // ─── Handle Magazine Order ──────────────────────────────────────────────────
+  const handleMagazineOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    const { studentName, mobile, address, quantity } = magazineForm;
+    if (!studentName.trim() || !mobile.trim() || !address.trim()) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    const acc = getFEByCode(REFERRAL_CODE);
+    const order: MagazineOrder = {
+      orderId: `MO${Date.now()}`,
+      studentName: studentName.trim(),
+      mobile: mobile.trim(),
+      address: address.trim(),
+      quantity: Number(quantity) || 1,
+      feAccountId: acc?.feAccountId ?? "FE1001",
+      referralCode: REFERRAL_CODE,
+      status: "Pending",
+      createdAt: Date.now(),
+    };
+
+    saveMagazineOrder(order);
+    toast.success("Magazine order submitted successfully!");
+    setMagazineForm({
+      studentName: "",
+      mobile: "",
+      address: "",
+      quantity: "1",
     });
   };
 
@@ -381,7 +431,7 @@ export function FieldExecDashboard() {
           data-ocid="overview.referrals.card"
         />
         <StatsCard
-          title="Approved"
+          title="Students Enrolled"
           value={myLeads.filter((l) => l.status === "Approved").length}
           icon={<Check className="w-5 h-5" />}
           color="oklch(0.55 0.16 165)"
@@ -395,7 +445,7 @@ export function FieldExecDashboard() {
           data-ocid="overview.magazine.card"
         />
         <StatsCard
-          title="Total Earnings"
+          title="Commission Earned"
           value={`₹${totalEarned}`}
           icon={<IndianRupee className="w-5 h-5" />}
           color="oklch(0.68 0.19 50)"
@@ -818,6 +868,88 @@ export function FieldExecDashboard() {
           ))}
         </ul>
       </div>
+
+      {/* Magazine Order Form */}
+      <div
+        className="bg-white rounded-2xl border p-6 shadow-sm"
+        style={{ borderColor: "oklch(0.93 0.02 255)" }}
+      >
+        <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+          <Send className="w-4 h-4" style={{ color: "oklch(0.52 0.18 145)" }} />
+          Submit a Magazine Order
+        </h3>
+        <form onSubmit={handleMagazineOrder} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="magStudentName">Student Name *</Label>
+            <Input
+              id="magStudentName"
+              value={magazineForm.studentName}
+              onChange={(e) =>
+                setMagazineForm((p) => ({ ...p, studentName: e.target.value }))
+              }
+              placeholder="Student's full name"
+              className="rounded-xl"
+              required
+              data-ocid="fe.magazine.order.student.input"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="magMobile">Mobile Number *</Label>
+            <Input
+              id="magMobile"
+              type="tel"
+              value={magazineForm.mobile}
+              onChange={(e) =>
+                setMagazineForm((p) => ({ ...p, mobile: e.target.value }))
+              }
+              placeholder="+91 XXXXX XXXXX"
+              className="rounded-xl"
+              required
+              data-ocid="fe.magazine.order.mobile.input"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="magAddress">Address *</Label>
+            <Textarea
+              id="magAddress"
+              value={magazineForm.address}
+              onChange={(e) =>
+                setMagazineForm((p) => ({ ...p, address: e.target.value }))
+              }
+              placeholder="Delivery address"
+              className="rounded-xl resize-none"
+              rows={3}
+              required
+              data-ocid="fe.magazine.order.address.textarea"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="magQty">Quantity *</Label>
+            <Input
+              id="magQty"
+              type="number"
+              min={1}
+              value={magazineForm.quantity}
+              onChange={(e) =>
+                setMagazineForm((p) => ({ ...p, quantity: e.target.value }))
+              }
+              placeholder="1"
+              className="rounded-xl"
+              required
+              data-ocid="fe.magazine.order.quantity.input"
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full text-white font-semibold gap-2"
+            style={{ background: "oklch(0.52 0.18 145)" }}
+            data-ocid="fe.magazine.order.submit_button"
+          >
+            <Send className="w-4 h-4" />
+            Submit Order
+          </Button>
+        </form>
+      </div>
     </div>
   );
 
@@ -913,11 +1045,11 @@ export function FieldExecDashboard() {
     </div>
   );
 
-  const renderAddReferral = () => (
+  const renderEnrollStudent = () => (
     <div className="space-y-6">
       <SectionHeader
-        title="Add New Referral"
-        description="Add a student referral and track your commission"
+        title="Enroll a Student"
+        description="Fill in student details to enroll them in a course"
       />
 
       <div className="max-w-lg">
@@ -939,13 +1071,13 @@ export function FieldExecDashboard() {
             when this student enrolls!{" "}
             <span className="opacity-75">
               (Basic ₹50 / Standard ₹100 / Premium ₹150 + ₹100 bonus every 10
-              enrollments, Pragati Magazine ₹50)
+              enrollments)
             </span>
           </span>
         </div>
 
         <form
-          onSubmit={handleAddReferral}
+          onSubmit={handleEnrollStudent}
           className="bg-white rounded-2xl border p-6 shadow-sm space-y-4"
           style={{ borderColor: "oklch(0.93 0.02 255)" }}
         >
@@ -961,7 +1093,7 @@ export function FieldExecDashboard() {
               placeholder="Student's full name"
               className="rounded-xl"
               required
-              data-ocid="referral.student.input"
+              data-ocid="fe.enroll.student.input"
             />
           </div>
 
@@ -976,7 +1108,7 @@ export function FieldExecDashboard() {
               }
               placeholder="Parent's name"
               className="rounded-xl"
-              data-ocid="referral.parent.input"
+              data-ocid="fe.enroll.parent.input"
             />
           </div>
 
@@ -991,7 +1123,7 @@ export function FieldExecDashboard() {
             >
               <SelectTrigger
                 className="rounded-xl"
-                data-ocid="referral.class.select"
+                data-ocid="fe.enroll.class.select"
               >
                 <SelectValue placeholder="Select class" />
               </SelectTrigger>
@@ -1007,7 +1139,7 @@ export function FieldExecDashboard() {
 
           {/* Plan */}
           <div className="space-y-1.5">
-            <Label>Plan *</Label>
+            <Label>Course Plan *</Label>
             <Select
               value={referralForm.planId}
               onValueChange={(v) =>
@@ -1016,21 +1148,14 @@ export function FieldExecDashboard() {
             >
               <SelectTrigger
                 className="rounded-xl"
-                data-ocid="referral.plan.select"
+                data-ocid="fe.enroll.plan.select"
               >
                 <SelectValue placeholder="Select plan" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">Basic Plan – ₹50 commission</SelectItem>
-                <SelectItem value="2">
-                  Standard Plan – ₹100 commission
-                </SelectItem>
-                <SelectItem value="3">
-                  Premium Plan – ₹150 commission
-                </SelectItem>
-                <SelectItem value="4">
-                  Pragati Magazine – ₹50 commission
-                </SelectItem>
+                <SelectItem value="1">Basic – ₹50 commission</SelectItem>
+                <SelectItem value="2">Standard – ₹100 commission</SelectItem>
+                <SelectItem value="3">Premium – ₹150 commission</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1048,7 +1173,7 @@ export function FieldExecDashboard() {
               type="tel"
               className="rounded-xl"
               required
-              data-ocid="referral.mobile.input"
+              data-ocid="fe.enroll.mobile.input"
             />
           </div>
 
@@ -1063,7 +1188,7 @@ export function FieldExecDashboard() {
               }
               placeholder="City or village name"
               className="rounded-xl"
-              data-ocid="referral.city.input"
+              data-ocid="fe.enroll.city.input"
             />
           </div>
 
@@ -1072,14 +1197,14 @@ export function FieldExecDashboard() {
             disabled={createReferral.isPending}
             className="w-full text-white border-0 font-semibold"
             style={{ background: "oklch(0.62 0.2 320)" }}
-            data-ocid="referral.submit_button"
+            data-ocid="fe.enroll.submit_button"
           >
             {createReferral.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin mr-2" />
             ) : (
               <UserPlus className="w-4 h-4 mr-2" />
             )}
-            {createReferral.isPending ? "Submitting..." : "Submit Referral"}
+            {createReferral.isPending ? "Submitting..." : "Enroll Student"}
           </Button>
         </form>
       </div>
@@ -1099,7 +1224,7 @@ export function FieldExecDashboard() {
       <div className="space-y-6">
         <SectionHeader
           title="My Leads"
-          description="Students you've enrolled through your referral link or Add Referral form"
+          description="Students you've enrolled through your referral link or Enroll Student form"
         />
 
         {/* Stats */}
@@ -1150,17 +1275,17 @@ export function FieldExecDashboard() {
               No leads yet
             </h3>
             <p className="text-sm text-foreground/60 mb-5 max-w-xs">
-              Share your referral link or add a student via the Add Referral
-              form.
+              Share your referral link or enroll a student via the Enroll
+              Student form.
             </p>
             <Button
-              onClick={() => setActiveSection("add-referral")}
+              onClick={() => setActiveSection("enroll-student")}
               className="gap-2 text-white font-semibold"
               style={{ background: "oklch(0.45 0.18 262)" }}
               data-ocid="leads.add.primary_button"
             >
               <UserPlus className="w-4 h-4" />
-              Add Referral
+              Enroll Student
             </Button>
           </div>
         ) : (
@@ -1464,13 +1589,13 @@ export function FieldExecDashboard() {
               and magazine promotions.
             </p>
             <Button
-              onClick={() => setActiveSection("add-referral")}
+              onClick={() => setActiveSection("enroll-student")}
               className="gap-2 text-white font-semibold"
               style={{ background: "oklch(0.62 0.2 320)" }}
               data-ocid="referrals.add.primary_button"
             >
               <UserPlus className="w-4 h-4" />
-              Add First Referral
+              Enroll First Student
             </Button>
           </div>
         ) : (
@@ -1534,6 +1659,134 @@ export function FieldExecDashboard() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── Leaderboard ────────────────────────────────────────────────────────────
+  const renderLeaderboard = () => {
+    const sortedFEs = [...allFEAccounts]
+      .sort((a, b) => b.enrollmentCount - a.enrollmentCount)
+      .slice(0, 10);
+
+    const rankMedal = (rank: number) => {
+      if (rank === 1) return "🥇";
+      if (rank === 2) return "🥈";
+      if (rank === 3) return "🥉";
+      return `#${rank}`;
+    };
+
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="Top Field Executives This Month"
+          description="Top sellers motivating the team to grow"
+        />
+
+        {sortedFEs.length === 0 ? (
+          <div
+            className="rounded-2xl border p-12 flex flex-col items-center justify-center text-center bg-white"
+            style={{ borderColor: "oklch(0.93 0.02 255)" }}
+            data-ocid="leaderboard.empty_state"
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 text-3xl"
+              style={{ background: "oklch(0.97 0.04 50)" }}
+            >
+              🏆
+            </div>
+            <h3 className="text-base font-bold text-foreground mb-1">
+              Leaderboard is empty
+            </h3>
+            <p className="text-sm text-foreground/60 mb-5 max-w-xs">
+              Be the first on the leaderboard! Start enrolling students.
+            </p>
+            <Button
+              onClick={() => setActiveSection("enroll-student")}
+              className="gap-2 text-white font-semibold"
+              style={{ background: "oklch(0.68 0.19 50)" }}
+              data-ocid="leaderboard.enroll.primary_button"
+            >
+              <UserPlus className="w-4 h-4" />
+              Enroll a Student
+            </Button>
+          </div>
+        ) : (
+          <div
+            className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+            style={{ borderColor: "oklch(0.93 0.02 255)" }}
+            data-ocid="fe.leaderboard.table"
+          >
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Rank</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>FE Code</TableHead>
+                    <TableHead>Students Enrolled</TableHead>
+                    <TableHead>Commission Earned</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedFEs.map((acc, idx) => {
+                    const rank = idx + 1;
+                    const isTopThree = rank <= 3;
+                    const isMe = acc.feCode === REFERRAL_CODE;
+                    return (
+                      <TableRow
+                        key={acc.feAccountId}
+                        data-ocid={`fe.leaderboard.item.${idx + 1}`}
+                        className={
+                          isMe
+                            ? "bg-blue-50/60"
+                            : isTopThree
+                              ? "bg-gradient-to-r from-yellow-50/60 to-transparent"
+                              : ""
+                        }
+                      >
+                        <TableCell>
+                          <span
+                            className={`text-lg font-bold ${isTopThree ? "" : "font-mono text-sm text-foreground/60"}`}
+                          >
+                            {rankMedal(rank)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {acc.name}
+                          {isMe && (
+                            <span className="ml-2 text-xs font-normal text-blue-600">
+                              (You)
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell
+                          className="font-mono font-bold text-xs"
+                          style={{ color: "oklch(0.45 0.18 262)" }}
+                        >
+                          {acc.feCode}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-lg">
+                              {acc.enrollmentCount}
+                            </span>
+                            <span className="text-xs text-foreground/50">
+                              students
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-semibold text-green-700">
+                          ₹{acc.totalEarned}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>
@@ -1717,14 +1970,16 @@ export function FieldExecDashboard() {
         return renderPragatiMagazine();
       case "course-programs":
         return renderCoursePrograms();
-      case "add-referral":
-        return renderAddReferral();
+      case "enroll-student":
+        return renderEnrollStudent();
       case "my-leads":
         return renderMyLeads();
       case "share-link":
         return renderShareLink();
       case "my-referrals":
         return renderMyReferrals();
+      case "leaderboard":
+        return renderLeaderboard();
       case "withdraw":
         return renderWithdraw();
       default:

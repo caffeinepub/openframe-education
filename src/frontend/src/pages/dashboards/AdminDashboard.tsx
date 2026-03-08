@@ -23,8 +23,10 @@ import {
   IndianRupee,
   LayoutDashboard,
   Lock,
+  Phone,
   PlusCircle,
   Share2,
+  TrendingUp,
   Users,
   Users2,
   Wallet,
@@ -51,13 +53,16 @@ import {
 import type {
   EnrollmentLead,
   FieldExecAccount,
+  MagazineOrder,
   WithdrawalRequest,
 } from "../../utils/referralStore";
 import {
   approveLead,
   approveWithdrawal,
+  fulfillMagazineOrder,
   getFEAccounts,
   getLeads,
+  getMagazineOrders,
   getWithdrawals,
   rejectLead,
   rejectWithdrawal,
@@ -76,6 +81,16 @@ const navItems = [
     id: "enrollment-leads",
     label: "Enrollment Leads",
     icon: <ClipboardList className="w-4 h-4" />,
+  },
+  {
+    id: "magazine-orders",
+    label: "Magazine Orders",
+    icon: <BookOpen className="w-4 h-4" />,
+  },
+  {
+    id: "leaderboard",
+    label: "Leaderboard",
+    icon: <TrendingUp className="w-4 h-4" />,
   },
   {
     id: "fe-management",
@@ -139,6 +154,7 @@ const statusColors: Record<string, string> = {
   Rejected: "bg-red-100 text-red-800",
   Received: "bg-blue-100 text-blue-800",
   Unpaid: "bg-gray-100 text-gray-600",
+  Fulfilled: "bg-green-100 text-green-800",
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -168,6 +184,7 @@ export function AdminDashboard() {
   const [leads, setLeads] = useState<EnrollmentLead[]>([]);
   const [feAccounts, setFeAccounts] = useState<FieldExecAccount[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [magazineOrders, setMagazineOrders] = useState<MagazineOrder[]>([]);
 
   // FE Management
   const [showAddFE, setShowAddFE] = useState(false);
@@ -195,6 +212,7 @@ export function AdminDashboard() {
     setLeads(getLeads());
     setFeAccounts(getFEAccounts());
     setWithdrawals(getWithdrawals());
+    setMagazineOrders(getMagazineOrders());
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial load only
@@ -202,6 +220,7 @@ export function AdminDashboard() {
     setLeads(getLeads());
     setFeAccounts(getFEAccounts());
     setWithdrawals(getWithdrawals());
+    setMagazineOrders(getMagazineOrders());
   }, []);
 
   // ─── FE lookup helper ────────────────────────────────────────────────────────
@@ -229,6 +248,13 @@ export function AdminDashboard() {
     updateLead(leadId, { paymentStatus: "Received" });
     refreshData();
     toast.success("Payment marked as received.");
+  };
+
+  // ─── Magazine Order Handlers ─────────────────────────────────────────────────
+  const handleFulfillOrder = (orderId: string) => {
+    fulfillMagazineOrder(orderId);
+    refreshData();
+    toast.success("Magazine order fulfilled!");
   };
 
   // ─── Withdrawal Handlers ─────────────────────────────────────────────────────
@@ -410,8 +436,8 @@ export function AdminDashboard() {
         return (
           <div className="space-y-6">
             <SectionHeader
-              title="Enrollment Leads"
-              description="Students enrolled via referral links or the Add Referral form"
+              title="Student Enrollment Leads"
+              description="Students enrolled via referral links or the Enroll Student form"
             />
 
             {/* Stats */}
@@ -457,19 +483,21 @@ export function AdminDashboard() {
               <div
                 className="bg-white rounded-2xl border shadow-sm overflow-hidden"
                 style={{ borderColor: "oklch(0.93 0.02 255)" }}
-                data-ocid="leads.table"
+                data-ocid="admin.leads.table"
               >
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>#</TableHead>
-                        <TableHead>Student</TableHead>
+                        <TableHead>Student Name</TableHead>
+                        <TableHead>Parent Name</TableHead>
+                        <TableHead>Mobile Number</TableHead>
                         <TableHead>Class</TableHead>
                         <TableHead>Course</TableHead>
                         <TableHead>City</TableHead>
-                        <TableHead>Referral</TableHead>
-                        <TableHead>FE Name</TableHead>
+                        <TableHead>Field Executive</TableHead>
+                        <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Payment</TableHead>
                         <TableHead>Commission</TableHead>
@@ -486,18 +514,19 @@ export function AdminDashboard() {
                         return (
                           <TableRow
                             key={lead.leadId}
-                            data-ocid={`leads.item.${idx + 1}`}
+                            data-ocid={`admin.leads.item.${idx + 1}`}
                           >
                             <TableCell className="font-mono text-xs text-foreground/50">
                               #{idx + 1}
                             </TableCell>
                             <TableCell className="font-medium">
                               {lead.studentName}
-                              {lead.parentName && (
-                                <span className="block text-xs text-foreground/50">
-                                  {lead.parentName}
-                                </span>
-                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-foreground/70">
+                              {lead.parentName || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm font-mono">
+                              {lead.mobile || "—"}
                             </TableCell>
                             <TableCell className="text-sm">
                               {lead.classLevel}
@@ -516,14 +545,14 @@ export function AdminDashboard() {
                             <TableCell className="text-xs">
                               {lead.cityVillage || "—"}
                             </TableCell>
-                            <TableCell
-                              className="font-mono text-xs font-bold"
-                              style={{ color: "oklch(0.45 0.18 262)" }}
-                            >
-                              {lead.referralCode || "—"}
-                            </TableCell>
                             <TableCell className="text-xs">
                               {getFEName(lead.feAccountId)}
+                            </TableCell>
+                            <TableCell className="text-xs text-foreground/60">
+                              {new Date(lead.createdAt).toLocaleDateString(
+                                "en-IN",
+                                { day: "2-digit", month: "short" },
+                              )}
                             </TableCell>
                             <TableCell>
                               <StatusBadge status={lead.status} />
@@ -540,14 +569,14 @@ export function AdminDashboard() {
                                   <Lock className="w-4 h-4 text-foreground/30" />
                                 </span>
                               ) : lead.status === "Pending" ? (
-                                <div className="flex gap-1.5">
+                                <div className="flex flex-wrap gap-1.5">
                                   <Button
                                     size="sm"
                                     className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white px-2.5"
                                     onClick={() =>
                                       handleApproveLead(lead.leadId)
                                     }
-                                    data-ocid={`leads.approve.primary_button.${idx + 1}`}
+                                    data-ocid={`admin.leads.approve.primary_button.${idx + 1}`}
                                   >
                                     Approve
                                   </Button>
@@ -558,22 +587,273 @@ export function AdminDashboard() {
                                     onClick={() =>
                                       handleRejectLead(lead.leadId)
                                     }
-                                    data-ocid={`leads.reject.delete_button.${idx + 1}`}
+                                    data-ocid={`admin.leads.reject.delete_button.${idx + 1}`}
                                   >
                                     Reject
                                   </Button>
+                                  <a
+                                    href={`https://wa.me/91${lead.mobile}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    data-ocid={`admin.leads.contact.primary_button.${idx + 1}`}
+                                  >
+                                    <Button
+                                      size="sm"
+                                      className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5 gap-1"
+                                    >
+                                      <Phone className="w-3 h-3" />
+                                      Contact
+                                    </Button>
+                                  </a>
                                 </div>
                               ) : lead.status === "Approved" &&
                                 lead.paymentStatus === "Unpaid" ? (
                                 <Button
                                   size="sm"
-                                  className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5"
+                                  className="h-7 text-xs bg-orange-600 hover:bg-orange-700 text-white px-2.5"
                                   onClick={() => handleMarkPayment(lead.leadId)}
-                                  data-ocid={`leads.payment.primary_button.${idx + 1}`}
+                                  data-ocid={`admin.leads.payment.primary_button.${idx + 1}`}
                                 >
-                                  Mark Paid
+                                  Mark Payment Received
                                 </Button>
                               ) : null}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────
+      case "magazine-orders": {
+        const totalOrders = magazineOrders.length;
+        const pendingOrders = magazineOrders.filter(
+          (o) => o.status === "Pending",
+        ).length;
+        const fulfilledOrders = magazineOrders.filter(
+          (o) => o.status === "Fulfilled",
+        ).length;
+
+        return (
+          <div className="space-y-6">
+            <SectionHeader
+              title="Magazine Orders"
+              description="Pragati Study Magazine orders from field executives"
+            />
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <StatsCard
+                title="Total Orders"
+                value={totalOrders}
+                icon={<BookOpen className="w-5 h-5" />}
+                color="oklch(0.52 0.18 145)"
+              />
+              <StatsCard
+                title="Pending"
+                value={pendingOrders}
+                icon="⏳"
+                color="oklch(0.68 0.19 50)"
+              />
+              <StatsCard
+                title="Fulfilled"
+                value={fulfilledOrders}
+                icon="✅"
+                color="oklch(0.55 0.16 165)"
+              />
+            </div>
+
+            {/* Table */}
+            {magazineOrders.length === 0 ? (
+              <div
+                className="rounded-2xl border p-12 text-center bg-white"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="magazine.empty_state"
+              >
+                <p className="text-foreground/60 text-sm">
+                  No magazine orders yet. Field executives can submit orders
+                  from their dashboard.
+                </p>
+              </div>
+            ) : (
+              <div
+                className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="admin.magazine.table"
+              >
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Student Name</TableHead>
+                        <TableHead>Mobile</TableHead>
+                        <TableHead>Address</TableHead>
+                        <TableHead>Qty</TableHead>
+                        <TableHead>FE Name/ID</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {magazineOrders.map((order, idx) => (
+                        <TableRow
+                          key={order.orderId}
+                          data-ocid={`admin.magazine.item.${idx + 1}`}
+                        >
+                          <TableCell className="font-mono text-xs text-foreground/50">
+                            #{idx + 1}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {order.studentName}
+                          </TableCell>
+                          <TableCell className="text-sm font-mono">
+                            {order.mobile}
+                          </TableCell>
+                          <TableCell className="text-xs text-foreground/70 max-w-[160px] truncate">
+                            {order.address}
+                          </TableCell>
+                          <TableCell className="text-center font-semibold">
+                            {order.quantity}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {getFEName(order.feAccountId)}
+                          </TableCell>
+                          <TableCell className="text-xs text-foreground/60">
+                            {new Date(order.createdAt).toLocaleDateString(
+                              "en-IN",
+                              { day: "2-digit", month: "short" },
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={order.status} />
+                          </TableCell>
+                          <TableCell>
+                            {order.status === "Pending" ? (
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white px-2.5"
+                                onClick={() =>
+                                  handleFulfillOrder(order.orderId)
+                                }
+                                data-ocid={`admin.magazine.fulfill.primary_button.${idx + 1}`}
+                              >
+                                Fulfill
+                              </Button>
+                            ) : (
+                              <span title="Already fulfilled">
+                                <Lock className="w-4 h-4 text-foreground/30" />
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // ─────────────────────────────────────────────────────────────────────────
+      case "leaderboard": {
+        const sortedFEs = [...feAccounts]
+          .sort((a, b) => b.enrollmentCount - a.enrollmentCount)
+          .slice(0, 10);
+
+        const rankMedal = (rank: number) => {
+          if (rank === 1) return "🥇";
+          if (rank === 2) return "🥈";
+          if (rank === 3) return "🥉";
+          return `#${rank}`;
+        };
+
+        return (
+          <div className="space-y-6">
+            <SectionHeader
+              title="Top Field Executives This Month"
+              description="Top sellers motivating the team to grow"
+            />
+
+            {sortedFEs.length === 0 ? (
+              <div
+                className="rounded-2xl border p-12 text-center bg-white"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="leaderboard.empty_state"
+              >
+                <p className="text-foreground/60 text-sm">
+                  No field executives registered yet. Add FEs from FE Management
+                  to see the leaderboard.
+                </p>
+              </div>
+            ) : (
+              <div
+                className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid="admin.leaderboard.table"
+              >
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Rank</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>FE Code</TableHead>
+                        <TableHead>Students Enrolled</TableHead>
+                        <TableHead>Commission Earned</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedFEs.map((acc, idx) => {
+                        const rank = idx + 1;
+                        const isTopThree = rank <= 3;
+                        return (
+                          <TableRow
+                            key={acc.feAccountId}
+                            data-ocid={`admin.leaderboard.item.${idx + 1}`}
+                            className={
+                              isTopThree
+                                ? "bg-gradient-to-r from-yellow-50/60 to-transparent"
+                                : ""
+                            }
+                          >
+                            <TableCell>
+                              <span
+                                className={`text-lg font-bold ${isTopThree ? "" : "font-mono text-sm text-foreground/60"}`}
+                              >
+                                {rankMedal(rank)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              {acc.name}
+                            </TableCell>
+                            <TableCell
+                              className="font-mono font-bold text-xs"
+                              style={{ color: "oklch(0.45 0.18 262)" }}
+                            >
+                              {acc.feCode}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-lg">
+                                  {acc.enrollmentCount}
+                                </span>
+                                <span className="text-xs text-foreground/50">
+                                  students
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold text-green-700">
+                              ₹{acc.totalEarned}
                             </TableCell>
                           </TableRow>
                         );

@@ -62,12 +62,29 @@ export const COMMISSION_MAP: Record<string, number> = {
 
 export const BONUS_PER_10 = 100;
 
+// ─── Magazine Order Type ──────────────────────────────────────────────────────
+
+export type MagazineOrderStatus = "Pending" | "Fulfilled";
+
+export interface MagazineOrder {
+  orderId: string;
+  studentName: string;
+  mobile: string;
+  address: string;
+  quantity: number;
+  feAccountId: string;
+  referralCode: string;
+  status: MagazineOrderStatus;
+  createdAt: number;
+}
+
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
 
 const KEYS = {
   leads: "oe_leads",
   feAccounts: "oe_fe_accounts",
   withdrawals: "oe_withdrawals",
+  magazineOrders: "oe_magazine_orders",
 } as const;
 
 // ─── Generic Helpers ──────────────────────────────────────────────────────────
@@ -230,6 +247,27 @@ export function approveWithdrawal(requestId: string, note: string): void {
  */
 export function rejectWithdrawal(requestId: string, note: string): void {
   updateWithdrawal(requestId, { status: "Rejected", adminNote: note });
+}
+
+// ─── Magazine Orders ──────────────────────────────────────────────────────────
+
+export function getMagazineOrders(): MagazineOrder[] {
+  return readStore<MagazineOrder>(KEYS.magazineOrders);
+}
+
+export function saveMagazineOrder(order: MagazineOrder): void {
+  const orders = getMagazineOrders();
+  orders.push(order);
+  writeStore(KEYS.magazineOrders, orders);
+}
+
+export function fulfillMagazineOrder(orderId: string): void {
+  const orders = getMagazineOrders().map((o) =>
+    o.orderId === orderId
+      ? { ...o, status: "Fulfilled" as MagazineOrderStatus }
+      : o,
+  );
+  writeStore(KEYS.magazineOrders, orders);
 }
 
 // ─── Seed Default FE Account ──────────────────────────────────────────────────
