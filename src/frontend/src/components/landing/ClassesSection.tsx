@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useRouter } from "@tanstack/react-router";
 import { BookOpen, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import { SAMPLE_CLASS_LEVELS } from "../../data/sampleData";
@@ -7,16 +8,12 @@ import { useGetAllClassLevels } from "../../hooks/useQueries";
 const classEmojis = ["🌱", "📚", "🔬", "🧪", "🎓"];
 
 export function ClassesSection() {
+  const router = useRouter();
   const { data: backendClasses } = useGetAllClassLevels();
   const classes =
     backendClasses && backendClasses.length > 0
       ? backendClasses
       : SAMPLE_CLASS_LEVELS;
-
-  const scrollToPricing = () => {
-    const el = document.getElementById("pricing");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-  };
 
   return (
     <section className="py-20 bg-white" id="classes">
@@ -125,9 +122,10 @@ export function ClassesSection() {
 
                 <Button
                   size="sm"
-                  onClick={scrollToPricing}
+                  onClick={() => router.navigate({ to: "/enroll" })}
                   className="w-full rounded-xl group/btn text-white border-0 flex items-center justify-center gap-1"
                   style={{ background: "oklch(0.45 0.18 262)" }}
+                  data-ocid={`classes.enroll.primary_button.${index + 1}`}
                 >
                   Enroll Now
                   <ChevronRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />

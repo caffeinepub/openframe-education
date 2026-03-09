@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
+import { useRouter } from "@tanstack/react-router";
 import { motion } from "motion/react";
 
 export function CTASection() {
+  const router = useRouter();
+
   const scrollTo = (id: string) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -51,13 +54,14 @@ export function CTASection() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
-              onClick={() => scrollTo("pricing")}
+              onClick={() => router.navigate({ to: "/enroll" })}
               className="px-10 py-6 text-base font-bold rounded-xl shadow-orange hover:shadow-xl transition-all"
               style={{
                 background: "oklch(0.68 0.19 50)",
                 color: "white",
                 border: "none",
               }}
+              data-ocid="cta.enroll.primary_button"
             >
               🚀 Enroll Today
             </Button>
@@ -71,6 +75,7 @@ export function CTASection() {
                 border: "2px solid rgba(255,255,255,0.5)",
                 color: "white",
               }}
+              data-ocid="cta.demo.secondary_button"
             >
               📅 Book Free Demo
             </Button>

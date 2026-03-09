@@ -66,6 +66,7 @@ import {
   getWithdrawals,
   rejectLead,
   rejectWithdrawal,
+  resetAllReferralData,
   saveFEAccount,
   updateFEAccount,
   updateLead,
@@ -208,11 +209,20 @@ export function AdminDashboard() {
       ? studyMaterials
       : SAMPLE_STUDY_MATERIALS;
 
+  const [confirmReset, setConfirmReset] = useState(false);
+
   const refreshData = () => {
     setLeads(getLeads());
     setFeAccounts(getFEAccounts());
     setWithdrawals(getWithdrawals());
     setMagazineOrders(getMagazineOrders());
+  };
+
+  const handleResetReferrals = () => {
+    resetAllReferralData();
+    refreshData();
+    setConfirmReset(false);
+    toast.success("All referral data has been reset to zero.");
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial load only
@@ -1671,10 +1681,46 @@ export function AdminDashboard() {
       case "referrals":
         return (
           <div>
-            <SectionHeader
-              title="Referral Tracking"
-              description="Field executive referrals and commissions"
-            />
+            <div className="flex items-center justify-between mb-4">
+              <SectionHeader
+                title="Referral Tracking"
+                description="Field executive referrals and commissions"
+              />
+              <div className="flex gap-2 items-center">
+                {confirmReset ? (
+                  <>
+                    <span className="text-sm text-red-600 font-medium">
+                      Are you sure? This cannot be undone.
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      data-ocid="referrals.confirm_button"
+                      onClick={handleResetReferrals}
+                    >
+                      Yes, Reset
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      data-ocid="referrals.cancel_button"
+                      onClick={() => setConfirmReset(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    data-ocid="referrals.delete_button"
+                    onClick={() => setConfirmReset(true)}
+                  >
+                    Reset All Referral Data
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-4 mb-6">
               <StatsCard
                 title="Total Referrals"

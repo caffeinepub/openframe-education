@@ -270,6 +270,23 @@ export function fulfillMagazineOrder(orderId: string): void {
   writeStore(KEYS.magazineOrders, orders);
 }
 
+// ─── Reset All Referral Data ──────────────────────────────────────────────────
+
+/**
+ * Wipes all referral-related data from localStorage:
+ * leads, FE accounts, withdrawals, and magazine orders.
+ */
+export function resetAllReferralData(): void {
+  try {
+    localStorage.removeItem(KEYS.leads);
+    localStorage.removeItem(KEYS.feAccounts);
+    localStorage.removeItem(KEYS.withdrawals);
+    localStorage.removeItem(KEYS.magazineOrders);
+  } catch {
+    // silently fail in private mode
+  }
+}
+
 // ─── Seed Default FE Account ──────────────────────────────────────────────────
 
 /**

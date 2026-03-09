@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useRouter } from "@tanstack/react-router";
 import { Award, BadgeCheck, PlayCircle, Video } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -10,6 +11,8 @@ const trustBadges = [
 ];
 
 export function HeroSection() {
+  const router = useRouter();
+
   const scrollTo = (id: string) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -91,18 +94,20 @@ export function HeroSection() {
                 color: "white",
                 border: "none",
               }}
+              data-ocid="hero.demo.primary_button"
             >
               📅 Book Free Demo
             </Button>
             <Button
               size="lg"
-              onClick={() => scrollTo("pricing")}
+              onClick={() => router.navigate({ to: "/enroll" })}
               className="text-base font-semibold px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
               style={{
                 background: "oklch(0.68 0.19 50)",
                 color: "white",
                 border: "none",
               }}
+              data-ocid="hero.enroll.primary_button"
             >
               🚀 Enroll Now
             </Button>
