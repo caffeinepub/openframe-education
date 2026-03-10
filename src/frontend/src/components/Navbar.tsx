@@ -59,6 +59,13 @@ export function Navbar() {
               </button>
             ))}
             <Link
+              to="/blog"
+              className="px-3 py-2 text-sm font-medium text-foreground/70 hover:text-brand-blue transition-colors rounded-md hover:bg-secondary"
+              data-ocid="nav.blog.link"
+            >
+              Blog
+            </Link>
+            <Link
               to="/pragati"
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ml-1"
               style={{
@@ -129,6 +136,14 @@ export function Navbar() {
                   {link.label}
                 </button>
               ))}
+              <Link
+                to="/blog"
+                onClick={() => setMenuOpen(false)}
+                className="px-3 py-2 text-sm font-medium text-foreground/70 hover:text-brand-blue hover:bg-secondary rounded-lg transition-colors"
+                data-ocid="nav.blog.mobile.link"
+              >
+                Blog
+              </Link>
               <Link
                 to="/pragati"
                 onClick={() => setMenuOpen(false)}

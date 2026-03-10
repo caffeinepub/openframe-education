@@ -16,16 +16,20 @@ import {
   BarChart3,
   BookOpen,
   Calendar,
+  CalendarDays,
   ClipboardCheck,
   ClipboardList,
   Clock,
   CreditCard,
+  Edit,
   IndianRupee,
   LayoutDashboard,
   Lock,
+  Newspaper,
   Phone,
   PlusCircle,
   Share2,
+  Trash2,
   TrendingUp,
   Users,
   Users2,
@@ -50,6 +54,15 @@ import {
   useGetAllDemoBookings,
   useGetAllStudyMaterials,
 } from "../../hooks/useQueries";
+import {
+  type Blog,
+  addBlog,
+  deleteBlog,
+  generateSlug,
+  getBlogs,
+  togglePublish,
+  updateBlog,
+} from "../../utils/blogStore";
 import type {
   EnrollmentLead,
   FieldExecAccount,
@@ -140,6 +153,11 @@ const navItems = [
     label: "Class Schedule",
     icon: <Clock className="w-4 h-4" />,
   },
+  {
+    id: "blog-manager",
+    label: "Blog Manager",
+    icon: <Newspaper className="w-4 h-4" />,
+  },
 ];
 
 const statusColors: Record<string, string> = {
@@ -211,11 +229,108 @@ export function AdminDashboard() {
 
   const [confirmReset, setConfirmReset] = useState(false);
 
+  // ─── Blog Manager State ───────────────────────────────────────────────────────
+  const [allBlogs, setAllBlogs] = useState<Blog[]>([]);
+  const [blogDialogOpen, setBlogDialogOpen] = useState(false);
+  const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
+  const [blogDeleteConfirm, setBlogDeleteConfirm] = useState<number | null>(
+    null,
+  );
+  const [blogForm, setBlogForm] = useState({
+    title: "",
+    slug: "",
+    category: "Competitive Exams",
+    shortDescription: "",
+    content: "",
+    authorName: "OpenFrame Education Team",
+    date: new Date().toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }),
+    imageUrl: "",
+    seoTitle: "",
+    metaDescription: "",
+    keywords: "",
+    published: true,
+  });
+
   const refreshData = () => {
     setLeads(getLeads());
     setFeAccounts(getFEAccounts());
     setWithdrawals(getWithdrawals());
     setMagazineOrders(getMagazineOrders());
+    setAllBlogs(getBlogs());
+  };
+
+  const openAddBlog = () => {
+    setEditingBlog(null);
+    setBlogForm({
+      title: "",
+      slug: "",
+      category: "Competitive Exams",
+      shortDescription: "",
+      content: "",
+      authorName: "OpenFrame Education Team",
+      date: new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+      imageUrl: "",
+      seoTitle: "",
+      metaDescription: "",
+      keywords: "",
+      published: true,
+    });
+    setBlogDialogOpen(true);
+  };
+
+  const openEditBlog = (blog: Blog) => {
+    setEditingBlog(blog);
+    setBlogForm({
+      title: blog.title,
+      slug: blog.slug,
+      category: blog.category,
+      shortDescription: blog.shortDescription,
+      content: blog.content,
+      authorName: blog.authorName,
+      date: blog.date,
+      imageUrl: blog.imageUrl,
+      seoTitle: blog.seoTitle,
+      metaDescription: blog.metaDescription,
+      keywords: blog.keywords,
+      published: blog.published,
+    });
+    setBlogDialogOpen(true);
+  };
+
+  const handleBlogFormSubmit = () => {
+    if (!blogForm.title.trim()) {
+      toast.error("Blog title is required.");
+      return;
+    }
+    if (editingBlog) {
+      updateBlog({ ...blogForm, id: editingBlog.id });
+      toast.success("Blog updated successfully.");
+    } else {
+      addBlog(blogForm);
+      toast.success("Blog published successfully.");
+    }
+    setBlogDialogOpen(false);
+    setAllBlogs(getBlogs());
+  };
+
+  const handleBlogDelete = (id: number) => {
+    deleteBlog(id);
+    setBlogDeleteConfirm(null);
+    setAllBlogs(getBlogs());
+    toast.success("Blog deleted.");
+  };
+
+  const handleTogglePublish = (id: number) => {
+    togglePublish(id);
+    setAllBlogs(getBlogs());
   };
 
   const handleResetReferrals = () => {
@@ -231,6 +346,7 @@ export function AdminDashboard() {
     setFeAccounts(getFEAccounts());
     setWithdrawals(getWithdrawals());
     setMagazineOrders(getMagazineOrders());
+    setAllBlogs(getBlogs());
   }, []);
 
   // ─── FE lookup helper ────────────────────────────────────────────────────────
@@ -1939,6 +2055,481 @@ export function AdminDashboard() {
                 </TableBody>
               </Table>
             </div>
+          </div>
+        );
+
+      case "blog-manager":
+        return (
+          <div>
+            <SectionHeader
+              title="Blog Manager"
+              description="Create and manage blog posts for the education website"
+            />
+            <div className="flex justify-end mb-4">
+              <button
+                type="button"
+                data-ocid="blog.open_modal_button"
+                onClick={openAddBlog}
+                className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Add New Blog
+              </button>
+            </div>
+
+            {/* Blog Table */}
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <Table data-ocid="blog.table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Image</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Author</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allBlogs.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        className="text-center py-8 text-muted-foreground"
+                        data-ocid="blog.empty_state"
+                      >
+                        No blogs yet. Click "Add New Blog" to create your first
+                        post.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {allBlogs.map((blog, idx) => (
+                    <TableRow
+                      key={blog.id}
+                      data-ocid={`blog.row.item.${idx + 1}`}
+                    >
+                      <TableCell>
+                        {blog.imageUrl ? (
+                          <img
+                            src={blog.imageUrl}
+                            alt={blog.title}
+                            className="w-14 h-10 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-14 h-10 rounded bg-gradient-to-br from-blue-400 to-orange-300 flex items-center justify-center">
+                            <BookOpen className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium max-w-[180px] truncate">
+                        {blog.title}
+                      </TableCell>
+                      <TableCell>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                          {blog.category}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {blog.authorName}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {blog.date}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${blog.published ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}
+                        >
+                          {blog.published ? "Published" : "Draft"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            data-ocid={`blog.edit_button.${idx + 1}`}
+                            onClick={() => openEditBlog(blog)}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                            title="Edit"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            data-ocid={`blog.delete_button.${idx + 1}`}
+                            onClick={() => setBlogDeleteConfirm(blog.id)}
+                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            data-ocid={`blog.toggle.${idx + 1}`}
+                            onClick={() => handleTogglePublish(blog.id)}
+                            className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${blog.published ? "bg-yellow-50 text-yellow-700 hover:bg-yellow-100" : "bg-green-50 text-green-700 hover:bg-green-100"}`}
+                          >
+                            {blog.published ? "Unpublish" : "Publish"}
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Delete Confirm */}
+            {blogDeleteConfirm !== null && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+                data-ocid="blog.dialog"
+              >
+                <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                  <h3 className="font-bold text-lg mb-2">Delete Blog?</h3>
+                  <p className="text-muted-foreground text-sm mb-6">
+                    This action cannot be undone. The blog post will be
+                    permanently deleted.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      data-ocid="blog.confirm_button"
+                      onClick={() => handleBlogDelete(blogDeleteConfirm)}
+                      className="flex-1 bg-red-600 text-white rounded-lg py-2 text-sm font-semibold hover:bg-red-700 transition-colors"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      data-ocid="blog.cancel_button"
+                      onClick={() => setBlogDeleteConfirm(null)}
+                      className="flex-1 border border-border rounded-lg py-2 text-sm font-semibold hover:bg-secondary transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Blog Add/Edit Dialog */}
+            {blogDialogOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8"
+                data-ocid="blog.modal"
+              >
+                <div className="bg-white rounded-2xl w-full max-w-2xl mx-4 shadow-2xl">
+                  <div className="flex items-center justify-between p-6 border-b border-border">
+                    <h3 className="font-bold text-lg">
+                      {editingBlog ? "Edit Blog Post" : "Add New Blog Post"}
+                    </h3>
+                    <button
+                      type="button"
+                      data-ocid="blog.close_button"
+                      onClick={() => setBlogDialogOpen(false)}
+                      className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="p-6 flex flex-col gap-4">
+                    <div>
+                      <label
+                        htmlFor="blog-title-input"
+                        className="text-sm font-semibold mb-1 block"
+                      >
+                        Title *
+                      </label>
+                      <input
+                        type="text"
+                        id="blog-title-input"
+                        data-ocid="blog.title.input"
+                        value={blogForm.title}
+                        onChange={(e) =>
+                          setBlogForm((p) => ({
+                            ...p,
+                            title: e.target.value,
+                            slug: generateSlug(e.target.value),
+                          }))
+                        }
+                        placeholder="Blog post title"
+                        className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="blog-slug-input"
+                        className="text-sm font-semibold mb-1 block"
+                      >
+                        Slug (URL)
+                      </label>
+                      <input
+                        type="text"
+                        id="blog-slug-input"
+                        data-ocid="blog.slug.input"
+                        value={blogForm.slug}
+                        onChange={(e) =>
+                          setBlogForm((p) => ({ ...p, slug: e.target.value }))
+                        }
+                        placeholder="url-friendly-slug"
+                        className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue bg-secondary/30"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="blog-category-select"
+                        className="text-sm font-semibold mb-1 block"
+                      >
+                        Category
+                      </label>
+                      <select
+                        id="blog-category-select"
+                        data-ocid="blog.category.select"
+                        value={blogForm.category}
+                        onChange={(e) =>
+                          setBlogForm((p) => ({
+                            ...p,
+                            category: e.target.value,
+                          }))
+                        }
+                        className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                      >
+                        <option>Competitive Exams</option>
+                        <option>Scholarships</option>
+                        <option>Olympiad Exams</option>
+                        <option>Career Guidance</option>
+                        <option>Study Tips</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="blog-short-desc"
+                        className="text-sm font-semibold mb-1 block"
+                      >
+                        Short Description (max 200 chars)
+                      </label>
+                      <textarea
+                        id="blog-short-desc"
+                        data-ocid="blog.short_desc.textarea"
+                        value={blogForm.shortDescription}
+                        onChange={(e) =>
+                          setBlogForm((p) => ({
+                            ...p,
+                            shortDescription: e.target.value.slice(0, 200),
+                          }))
+                        }
+                        placeholder="Brief description shown on the blog card"
+                        rows={2}
+                        className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue resize-none"
+                      />
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {blogForm.shortDescription.length}/200
+                      </p>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="blog-content"
+                        className="text-sm font-semibold mb-1 block"
+                      >
+                        Content (HTML supported)
+                      </label>
+                      <textarea
+                        id="blog-content"
+                        data-ocid="blog.content.textarea"
+                        value={blogForm.content}
+                        onChange={(e) =>
+                          setBlogForm((p) => ({
+                            ...p,
+                            content: e.target.value,
+                          }))
+                        }
+                        placeholder="Write full blog content here. Use <p> tags for paragraphs."
+                        rows={8}
+                        className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue resize-y font-mono"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label
+                          htmlFor="blog-author"
+                          className="text-sm font-semibold mb-1 block"
+                        >
+                          Author Name
+                        </label>
+                        <input
+                          type="text"
+                          id="blog-author"
+                          data-ocid="blog.author.input"
+                          value={blogForm.authorName}
+                          onChange={(e) =>
+                            setBlogForm((p) => ({
+                              ...p,
+                              authorName: e.target.value,
+                            }))
+                          }
+                          className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="blog-date"
+                          className="text-sm font-semibold mb-1 block"
+                        >
+                          Date
+                        </label>
+                        <input
+                          type="text"
+                          id="blog-date"
+                          data-ocid="blog.date.input"
+                          value={blogForm.date}
+                          onChange={(e) =>
+                            setBlogForm((p) => ({ ...p, date: e.target.value }))
+                          }
+                          className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="blog-image-url"
+                        className="text-sm font-semibold mb-1 block"
+                      >
+                        Image URL
+                      </label>
+                      <input
+                        type="text"
+                        id="blog-image-url"
+                        data-ocid="blog.image_url.input"
+                        value={blogForm.imageUrl}
+                        onChange={(e) =>
+                          setBlogForm((p) => ({
+                            ...p,
+                            imageUrl: e.target.value,
+                          }))
+                        }
+                        placeholder="https://... or /assets/..."
+                        className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                      />
+                    </div>
+                    <div className="border-t border-border pt-4">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                        SEO Settings
+                      </p>
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <label
+                            htmlFor="blog-seo-title"
+                            className="text-sm font-semibold mb-1 block"
+                          >
+                            SEO Title
+                          </label>
+                          <input
+                            type="text"
+                            id="blog-seo-title"
+                            data-ocid="blog.seo_title.input"
+                            value={blogForm.seoTitle}
+                            onChange={(e) =>
+                              setBlogForm((p) => ({
+                                ...p,
+                                seoTitle: e.target.value,
+                              }))
+                            }
+                            placeholder="SEO optimized title"
+                            className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="blog-meta-desc"
+                            className="text-sm font-semibold mb-1 block"
+                          >
+                            Meta Description
+                          </label>
+                          <textarea
+                            id="blog-meta-desc"
+                            data-ocid="blog.meta_desc.textarea"
+                            value={blogForm.metaDescription}
+                            onChange={(e) =>
+                              setBlogForm((p) => ({
+                                ...p,
+                                metaDescription: e.target.value,
+                              }))
+                            }
+                            placeholder="Under 160 characters"
+                            rows={2}
+                            className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue resize-none"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="blog-keywords"
+                            className="text-sm font-semibold mb-1 block"
+                          >
+                            Keywords
+                          </label>
+                          <input
+                            type="text"
+                            id="blog-keywords"
+                            data-ocid="blog.keywords.input"
+                            value={blogForm.keywords}
+                            onChange={(e) =>
+                              setBlogForm((p) => ({
+                                ...p,
+                                keywords: e.target.value,
+                              }))
+                            }
+                            placeholder="keyword1, keyword2, keyword3"
+                            className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between py-3 border-t border-border">
+                      <div>
+                        <p className="text-sm font-semibold">Publish Status</p>
+                        <p className="text-xs text-muted-foreground">
+                          Toggle to publish or save as draft
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        data-ocid="blog.publish.toggle"
+                        onClick={() =>
+                          setBlogForm((p) => ({
+                            ...p,
+                            published: !p.published,
+                          }))
+                        }
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${blogForm.published ? "bg-green-500" : "bg-gray-300"}`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${blogForm.published ? "translate-x-6" : "translate-x-1"}`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 p-6 border-t border-border">
+                    <button
+                      type="button"
+                      data-ocid="blog.submit_button"
+                      onClick={handleBlogFormSubmit}
+                      className="flex-1 bg-brand-blue text-white rounded-lg py-2.5 text-sm font-bold hover:bg-blue-700 transition-colors"
+                    >
+                      {editingBlog ? "Update Blog" : "Publish Blog"}
+                    </button>
+                    <button
+                      type="button"
+                      data-ocid="blog.cancel_button"
+                      onClick={() => setBlogDialogOpen(false)}
+                      className="px-6 border border-border rounded-lg py-2.5 text-sm font-semibold hover:bg-secondary transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
 

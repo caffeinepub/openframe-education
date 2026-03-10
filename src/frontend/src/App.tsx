@@ -6,6 +6,8 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
+import { BlogDetailPage } from "./pages/BlogDetailPage";
+import { BlogPage } from "./pages/BlogPage";
 import { EnrollmentFormPage } from "./pages/EnrollmentFormPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -81,6 +83,18 @@ const enrollRoute = createRoute({
   component: EnrollmentFormPage,
 });
 
+const blogRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/blog",
+  component: BlogPage,
+});
+
+const blogDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/blog/$slug",
+  component: BlogDetailPage,
+});
+
 // Route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -92,6 +106,8 @@ const routeTree = rootRoute.addChildren([
   fieldExecRoute,
   pragatiRoute,
   enrollRoute,
+  blogRoute,
+  blogDetailRoute,
 ]);
 
 // Router
