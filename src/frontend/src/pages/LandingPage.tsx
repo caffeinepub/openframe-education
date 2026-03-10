@@ -3,6 +3,7 @@ import { Navbar } from "../components/Navbar";
 import { AboutSection } from "../components/landing/AboutSection";
 import { CTASection } from "../components/landing/CTASection";
 import { ClassesSection } from "../components/landing/ClassesSection";
+import { CompetitiveExamsSection } from "../components/landing/CompetitiveExamsSection";
 import { DemoFormSection } from "../components/landing/DemoFormSection";
 import { FeaturesSection } from "../components/landing/FeaturesSection";
 import { HeroSection } from "../components/landing/HeroSection";
@@ -27,6 +28,7 @@ export function LandingPage() {
         <PricingSection />
         <TeachersSection />
         <CTASection />
+        <CompetitiveExamsSection />
         <StartupIndiaSection />
       </main>
       <Footer />
