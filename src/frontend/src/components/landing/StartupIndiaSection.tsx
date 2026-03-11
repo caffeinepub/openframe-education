@@ -1,4 +1,8 @@
+import { useState } from "react";
+
 export function StartupIndiaSection() {
+  const [certImageFailed, setCertImageFailed] = useState(false);
+
   return (
     <section
       className="py-16 bg-gradient-to-br from-blue-50 via-white to-orange-50"
@@ -44,12 +48,33 @@ export function StartupIndiaSection() {
           {/* Certificate Image */}
           <div className="flex flex-col items-center">
             <div className="rounded-2xl overflow-hidden shadow-lg border-4 border-blue-100 w-full">
-              <img
-                src="/assets/uploads/WhatsApp-Image-2026-03-07-at-1.18.58-AM-1.jpeg"
-                alt="Startup India Certificate of Recognition - Openframe IT Solutions Pvt. Ltd."
-                className="w-full object-contain"
-                data-ocid="startup_india.certificate_image"
-              />
+              {certImageFailed ? (
+                <div
+                  className="w-full flex flex-col items-center justify-center gap-3 bg-blue-50 p-10"
+                  style={{ minHeight: 220 }}
+                >
+                  <span className="text-5xl">📜</span>
+                  <p className="text-blue-700 font-semibold text-center">
+                    Startup India Certificate of Recognition
+                  </p>
+                  <p className="text-blue-500 text-sm font-medium">
+                    Certificate No: DIPP153945
+                  </p>
+                  <p className="text-gray-500 text-xs text-center">
+                    Issued by DPIIT, Ministry of Commerce &amp; Industry,
+                    Government of India
+                  </p>
+                </div>
+              ) : (
+                <img
+                  src="/assets/uploads/WhatsApp-Image-2026-03-07-at-1.18.58-AM-1.jpeg"
+                  alt="Startup India Certificate of Recognition - Openframe IT Solutions Pvt. Ltd. - DIPP153945"
+                  className="w-full object-contain"
+                  loading="lazy"
+                  data-ocid="startup_india.certificate_image"
+                  onError={() => setCertImageFailed(true)}
+                />
+              )}
             </div>
             <p className="mt-3 text-sm text-gray-500 text-center">
               Certificate No: DIPP153945
