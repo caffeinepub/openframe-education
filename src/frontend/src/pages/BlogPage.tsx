@@ -31,7 +31,17 @@ function BlogCardImage({
 }: { imageUrl: string; category: string }) {
   if (imageUrl) {
     return (
-      <img src={imageUrl} alt={category} className="w-full h-48 object-cover" />
+      <img
+        src={imageUrl}
+        alt={category}
+        className="w-full h-48 object-cover"
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.display = "none";
+          (e.target as HTMLImageElement).parentElement?.classList.add(
+            "fallback-active",
+          );
+        }}
+      />
     );
   }
   return (

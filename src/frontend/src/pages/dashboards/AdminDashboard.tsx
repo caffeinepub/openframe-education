@@ -2391,26 +2391,67 @@ export function AdminDashboard() {
                       </div>
                     </div>
                     <div>
-                      <label
-                        htmlFor="blog-image-url"
-                        className="text-sm font-semibold mb-1 block"
-                      >
-                        Image URL
-                      </label>
-                      <input
-                        type="text"
-                        id="blog-image-url"
-                        data-ocid="blog.image_url.input"
-                        value={blogForm.imageUrl}
-                        onChange={(e) =>
-                          setBlogForm((p) => ({
-                            ...p,
-                            imageUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://... or /assets/..."
-                        className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
-                      />
+                      <div className="text-sm font-semibold mb-1 block">
+                        Blog Image
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label
+                          data-ocid="blog.upload_button"
+                          className="flex items-center gap-2 cursor-pointer border border-dashed border-border rounded-lg px-3 py-3 text-sm text-muted-foreground hover:border-brand-blue hover:text-brand-blue transition-colors"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                            />
+                          </svg>
+                          {blogForm.imageUrl ? "Change Image" : "Upload Image"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                setBlogForm((p) => ({
+                                  ...p,
+                                  imageUrl: ev.target?.result as string,
+                                }));
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        {blogForm.imageUrl && (
+                          <div className="relative">
+                            <img
+                              src={blogForm.imageUrl}
+                              alt="Preview"
+                              className="w-full h-40 object-cover rounded-lg border border-border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setBlogForm((p) => ({ ...p, imageUrl: "" }))
+                              }
+                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="border-t border-border pt-4">
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
