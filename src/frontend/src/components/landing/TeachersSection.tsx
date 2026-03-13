@@ -5,32 +5,57 @@ const teachers = [
   {
     name: "Ms. Priya Sharma",
     image: "/assets/generated/teacher-priya.dim_400x400.jpg",
-    qualification: "M.Sc Mathematics",
+    qualification: "M.Sc Mathematics, B.Ed",
     experience: "8 years experience",
     subjects: "Maths, Science (6th–10th)",
     rating: 4.9,
     students: 120,
     badge: "Top Teacher",
+    fallbackIcon: "👩‍🏫",
   },
   {
     name: "Mr. Rajesh Kumar",
     image: "/assets/generated/teacher-rajesh.dim_400x400.jpg",
-    qualification: "B.Ed Physics & Chemistry",
+    qualification: "M.Sc Physics, B.Ed",
     experience: "6 years experience",
     subjects: "Physics, Chemistry (11th–12th)",
     rating: 4.8,
     students: 95,
     badge: "CBSE Expert",
+    fallbackIcon: "👨‍🏫",
   },
   {
     name: "Ms. Anitha Rao",
     image: "/assets/generated/teacher-anitha.dim_400x400.jpg",
-    qualification: "M.A English Literature",
+    qualification: "M.A English Literature, B.Ed",
     experience: "5 years experience",
     subjects: "English, EVS (Nursery–5th)",
     rating: 4.9,
     students: 110,
     badge: "Kids Specialist",
+    fallbackIcon: "👩‍🏫",
+  },
+  {
+    name: "Mr. Suresh Patil",
+    image: "/assets/generated/teacher-suresh.dim_400x400.jpg",
+    qualification: "M.A History, B.Ed",
+    experience: "10 years experience",
+    subjects: "Social Science, Hindi (6th–10th)",
+    rating: 4.7,
+    students: 130,
+    badge: "Senior Faculty",
+    fallbackIcon: "👨‍🏫",
+  },
+  {
+    name: "Ms. Kavitha Naik",
+    image: "/assets/generated/teacher-kavitha.dim_400x400.jpg",
+    qualification: "B.Tech Computer Science, B.Ed",
+    experience: "4 years experience",
+    subjects: "Digital Learning, Maths (1st–5th)",
+    rating: 4.8,
+    students: 85,
+    badge: "EdTech Expert",
+    fallbackIcon: "👩‍🏫",
   },
 ];
 
@@ -62,7 +87,7 @@ export function TeachersSection() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-6xl mx-auto">
           {teachers.map(
             (
               {
@@ -74,11 +99,13 @@ export function TeachersSection() {
                 rating,
                 students,
                 badge,
+                fallbackIcon,
               },
               index,
             ) => (
               <motion.div
                 key={name}
+                data-ocid={`teachers.item.${index + 1}`}
                 initial={{ opacity: 0, y: 32 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.1 }}
@@ -87,7 +114,7 @@ export function TeachersSection() {
               >
                 {/* Image */}
                 <div
-                  className="relative h-56 overflow-hidden"
+                  className="relative h-52 overflow-hidden"
                   style={{ background: "oklch(0.93 0.06 255)" }}
                 >
                   <img
@@ -99,8 +126,12 @@ export function TeachersSection() {
                       const target = e.currentTarget;
                       target.style.display = "none";
                       const parent = target.parentElement;
-                      if (parent) {
-                        parent.innerHTML = `<div class="w-full h-full flex items-center justify-center"><span style="font-size:4rem">👩‍🏫</span></div>`;
+                      if (parent && !parent.querySelector(".fallback-icon")) {
+                        const div = document.createElement("div");
+                        div.className =
+                          "fallback-icon w-full h-full flex items-center justify-center";
+                        div.innerHTML = `<span style="font-size:4rem">${fallbackIcon}</span>`;
+                        parent.appendChild(div);
                       }
                     }}
                   />
@@ -113,16 +144,16 @@ export function TeachersSection() {
                   </div>
                 </div>
 
-                <div className="p-6">
-                  <h3 className="font-bold text-foreground text-lg mb-1">
+                <div className="p-5">
+                  <h3 className="font-bold text-foreground text-base mb-1">
                     {name}
                   </h3>
                   <div className="flex items-center justify-center gap-1.5 mb-1">
                     <GraduationCap
-                      className="w-3.5 h-3.5"
+                      className="w-3.5 h-3.5 shrink-0"
                       style={{ color: "oklch(0.45 0.18 262)" }}
                     />
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground leading-tight">
                       {qualification}
                     </span>
                   </div>
