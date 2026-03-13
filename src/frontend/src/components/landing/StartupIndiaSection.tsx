@@ -67,7 +67,7 @@ export function StartupIndiaSection() {
                 </div>
               ) : (
                 <img
-                  src="/assets/uploads/WhatsApp-Image-2026-03-07-at-1.18.58-AM-1.jpeg"
+                  src="/assets/uploads/WhatsApp-Image-2026-03-07-at-1.18.58-AM-1-1.jpeg"
                   alt="Startup India Certificate of Recognition - Openframe IT Solutions Pvt. Ltd. - DIPP153945"
                   className="w-full object-contain"
                   loading="lazy"
