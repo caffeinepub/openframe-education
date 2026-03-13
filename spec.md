@@ -1,42 +1,57 @@
-# OpenFrame Education – Blog System
+# OpenFrame Education – Teacher Management System
 
 ## Current State
 
-The OpenFrame Education platform has:
-- A multi-section homepage (LandingPage.tsx)
-- A Navbar with links to About, Classes, Features, Pricing, Teachers, Contact, and Pragati Magazine
-- Five dashboards: Admin, Student, Parent, Teacher, Field Executive
-- An AdminDashboard with referral tracking, enrollment leads, FE management, withdrawals, commission reports, leaderboard
-- An EnrollmentFormPage at /enroll
-- A PragatiPage at /pragati
-- Routing via TanStack Router in App.tsx
+The platform has:
+- Admin Dashboard at `/dashboard/admin` with sections: overview, enrollment-leads, magazine-orders, leaderboard, fe-management, withdrawals, commission-reports, demo-bookings, students, attendance, payments, referrals, class-schedule, study-materials, blog-manager, settings
+- Teacher Dashboard at `/dashboard/teacher` (basic, not feature-complete)
+- DashboardLayout component with sidebar nav
+- localStorage-backed stores: blogStore, referralStore
+- App routes defined in App.tsx
 
 ## Requested Changes (Diff)
 
 ### Add
-- New public `/blog` page: "Education Blog" listing all published blog posts in a 3-column card grid
-- New public `/blog/:slug` page: Full blog post view with large image, title, content, social share buttons, related blogs, footer note
-- Blog categories: Competitive Exams, Scholarships, Olympiad Exams, Career Guidance, Study Tips
-- 4 sample pre-filled blog posts (one per category mix), each with title, short description, content, author, date, category, slug, and a placeholder image
-- "Blog" nav link added to Navbar (routes to /blog)
-- Admin Blog Manager section inside AdminDashboard: table of all blogs, Add/Edit/Delete, Publish/Unpublish toggles
-- Blog add/edit form with fields: Title, Slug (auto-generated from title), Category (dropdown), Short Description, Content (rich textarea), SEO Title, Meta Description, Keywords, Image upload (via blob-storage), Published toggle
-- Blob-storage used for real image file uploads in the admin blog manager
+- `src/frontend/src/utils/teacherStore.ts`: localStorage-backed store for all teacher management data (teachers, students, classes, attendance, class tracking, homework, notifications)
+- New route `/teacher-dashboard` pointing to a full Teacher Management Dashboard page
+- Teacher login page embedded in the `/teacher-dashboard` route (email + password, no backend auth)
+- New Admin Panel sections: Teachers, Students (school), Classes, Attendance Reports, Class Tracking, Homework, Notifications, Teacher Analytics
+- Teacher Dashboard page with sidebar: Dashboard, My Classes, Students, Attendance, Homework, Reports, Profile, Logout
 
 ### Modify
-- Navbar: add "Blog" link pointing to /blog
-- App.tsx: add /blog and /blog/$slug routes
-- AdminDashboard: add a "Blog Manager" tab/section
+- `AdminDashboard.tsx`: Add 8 new nav items and renderContent cases for teacher management sections
+- `App.tsx`: Add `/teacher-dashboard` route
 
 ### Remove
 - Nothing removed
 
 ## Implementation Plan
 
-1. Backend: Create Blog data model with fields: id, title, slug, category, shortDescription, content, authorName, date, imageUrl, seoTitle, metaDescription, keywords, published. CRUD operations: createBlog, updateBlog, deleteBlog, publishBlog, unpublishBlog, getBlogs, getBlogBySlug. Seed 4 sample blogs.
-2. Blob-storage: used for image uploads in admin blog form.
-3. Frontend – BlogPage (/blog): filter bar by category, 3-col card grid, each card with image/title/short desc/author/date/Read More button.
-4. Frontend – BlogDetailPage (/blog/:slug): hero image, title, content, social share (WhatsApp, Facebook, Twitter/copy link), related blogs grid at bottom, footer note.
-5. Frontend – Admin Blog Manager: new tab inside AdminDashboard, table with all blogs, publish toggle, edit/delete buttons, Add New Blog form in a dialog with all required fields including image upload.
-6. Navbar: add Blog link.
-7. App.tsx: register new routes.
+1. Create `teacherStore.ts` with types and localStorage CRUD for:
+   - Teacher accounts (id, name, email, password, phone, subject, qualification, assignedClasses, profilePhoto)
+   - School students (id, name, classId, section, rollNumber, parentName, parentPhone, dob)
+   - Classes (id, className, section, teacherId) – pre-seeded with Nursery, LKG, UKG, 1–12 × sections A,B,C
+   - Attendance records (studentId, classId, teacherId, date, status, documentUrl)
+   - Class tracking records (teacherId, classId, subject, date, startTime, endTime, topicCovered, homeworkGiven)
+   - Homework (teacherId, classId, title, description, fileUrl, dueDate)
+   - Notifications (title, message, sentBy, sentTo, date, read)
+
+2. Create `TeacherManagementPage.tsx` at `/teacher-dashboard`:
+   - Shows a login form (email + password) if not logged in as a teacher
+   - On login: looks up teacher by email+password from teacherStore, stores session in sessionStorage
+   - After login: shows full Teacher Dashboard with sidebar
+   - Sidebar sections: Dashboard (summary stats), My Classes, Students, Attendance (mark + upload doc), Homework (upload file), Class Tracking, Reports, Profile, Notifications, Logout
+
+3. Update `AdminDashboard.tsx`:
+   - Add nav items: teachers, school-students, school-classes, teacher-attendance, class-tracking, teacher-homework, teacher-notifications, teacher-analytics
+   - Implement each section's UI:
+     - Teachers: table + add/edit/delete teacher form (includes setting email/password)
+     - School Students: table + add/edit/delete
+     - School Classes: show all classes with section and assigned teacher
+     - Attendance Reports: filterable table by class/date
+     - Class Tracking: view all entries submitted by teachers
+     - Homework: view all homework entries
+     - Notifications: compose and send notification to specific teacher or all teachers
+     - Teacher Analytics: cards showing total teachers, students, today's attendance %, classes today
+
+4. Update `App.tsx` to add the `/teacher-dashboard` route

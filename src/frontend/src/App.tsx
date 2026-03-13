@@ -12,6 +12,7 @@ import { EnrollmentFormPage } from "./pages/EnrollmentFormPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PragatiPage } from "./pages/PragatiPage";
+import { TeacherManagementPage } from "./pages/TeacherManagementPage";
 import { AdminDashboard } from "./pages/dashboards/AdminDashboard";
 import { FieldExecDashboard } from "./pages/dashboards/FieldExecDashboard";
 import { ParentDashboard } from "./pages/dashboards/ParentDashboard";
@@ -95,6 +96,12 @@ const blogDetailRoute = createRoute({
   component: BlogDetailPage,
 });
 
+const teacherManagementRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/teacher-dashboard",
+  component: TeacherManagementPage,
+});
+
 // Route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -108,6 +115,7 @@ const routeTree = rootRoute.addChildren([
   enrollRoute,
   blogRoute,
   blogDetailRoute,
+  teacherManagementRoute,
 ]);
 
 // Router

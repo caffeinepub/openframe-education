@@ -11,10 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Award,
   BarChart3,
+  Bell,
   BookOpen,
+  BookUser,
   Calendar,
   CalendarDays,
   ClipboardCheck,
@@ -22,12 +25,14 @@ import {
   Clock,
   CreditCard,
   Edit,
+  GraduationCap,
   IndianRupee,
   LayoutDashboard,
   Lock,
   Newspaper,
   Phone,
   PlusCircle,
+  School,
   Share2,
   Trash2,
   TrendingUp,
@@ -84,6 +89,24 @@ import {
   updateFEAccount,
   updateLead,
 } from "../../utils/referralStore";
+import {
+  type TeacherAccount,
+  addNotification,
+  addStudent,
+  addTeacher,
+  deleteStudent,
+  deleteTeacher,
+  getAttendance,
+  getClassTracking,
+  getClasses,
+  getHomework,
+  getNotifications,
+  getStudents,
+  getTeachers,
+  updateClassTeacher,
+  updateStudent,
+  updateTeacher,
+} from "../../utils/teacherStore";
 
 const navItems = [
   {
@@ -158,6 +181,46 @@ const navItems = [
     label: "Blog Manager",
     icon: <Newspaper className="w-4 h-4" />,
   },
+  {
+    id: "teacher-analytics",
+    label: "Teacher Analytics",
+    icon: <GraduationCap className="w-4 h-4" />,
+  },
+  {
+    id: "manage-teachers",
+    label: "Manage Teachers",
+    icon: <Users className="w-4 h-4" />,
+  },
+  {
+    id: "school-students",
+    label: "School Students",
+    icon: <BookUser className="w-4 h-4" />,
+  },
+  {
+    id: "school-classes",
+    label: "Classes",
+    icon: <School className="w-4 h-4" />,
+  },
+  {
+    id: "teacher-attendance",
+    label: "Attendance Reports",
+    icon: <ClipboardCheck className="w-4 h-4" />,
+  },
+  {
+    id: "class-tracking-admin",
+    label: "Class Tracking",
+    icon: <CalendarDays className="w-4 h-4" />,
+  },
+  {
+    id: "teacher-homework",
+    label: "Homework",
+    icon: <BookOpen className="w-4 h-4" />,
+  },
+  {
+    id: "teacher-notifications",
+    label: "Notifications",
+    icon: <Bell className="w-4 h-4" />,
+  },
 ];
 
 const statusColors: Record<string, string> = {
@@ -192,6 +255,986 @@ interface NewFEForm {
   name: string;
   phone: string;
   upiDetails: string;
+}
+
+// ─── Teacher Management Sub-Components ────────────────────────────────────────
+
+function AdminManageTeachers() {
+  const [teacherList, setTeacherList] = useState(getTeachers());
+  const [showAddTeacher, setShowAddTeacher] = useState(false);
+  const [editTeacherId, setEditTeacherId] = useState<string | null>(null);
+  const [tForm, setTForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    subject: "",
+    qualification: "",
+    assignedClasses: [] as string[],
+  });
+  const allClasses = getClasses();
+
+  const refreshTeachers = () => setTeacherList(getTeachers());
+
+  const handleAddTeacher = () => {
+    if (!tForm.name || !tForm.email || !tForm.password) {
+      toast.error("Name, email and password required");
+      return;
+    }
+    if (editTeacherId) {
+      updateTeacher(editTeacherId, {
+        name: tForm.name,
+        email: tForm.email,
+        password: tForm.password,
+        phone: tForm.phone,
+        subject: tForm.subject,
+        qualification: tForm.qualification,
+        assignedClasses: tForm.assignedClasses,
+      });
+      for (const c of allClasses) {
+        const shouldAssign = tForm.assignedClasses.includes(c.id);
+        if (shouldAssign) updateClassTeacher(c.id, editTeacherId);
+        else if (c.teacherId === editTeacherId) updateClassTeacher(c.id, "");
+      }
+      toast.success("Teacher updated!");
+      setEditTeacherId(null);
+    } else {
+      const newT = addTeacher({
+        name: tForm.name,
+        email: tForm.email,
+        password: tForm.password,
+        phone: tForm.phone,
+        subject: tForm.subject,
+        qualification: tForm.qualification,
+        assignedClasses: tForm.assignedClasses,
+        profilePhoto: "",
+      });
+      for (const cid of tForm.assignedClasses) {
+        updateClassTeacher(cid, newT.id);
+      }
+      toast.success("Teacher added!");
+    }
+    setTForm({
+      name: "",
+      email: "",
+      password: "",
+      phone: "",
+      subject: "",
+      qualification: "",
+      assignedClasses: [],
+    });
+    setShowAddTeacher(false);
+    refreshTeachers();
+  };
+
+  const handleEditTeacher = (t: TeacherAccount) => {
+    const assigned = allClasses
+      .filter((c) => c.teacherId === t.id)
+      .map((c) => c.id);
+    setTForm({
+      name: t.name,
+      email: t.email,
+      password: t.password,
+      phone: t.phone,
+      subject: t.subject,
+      qualification: t.qualification,
+      assignedClasses: assigned,
+    });
+    setEditTeacherId(t.id);
+    setShowAddTeacher(true);
+  };
+
+  const handleDeleteTeacher = (id: string) => {
+    deleteTeacher(id);
+    for (const c of allClasses) {
+      if (c.teacherId === id) updateClassTeacher(c.id, "");
+    }
+    refreshTeachers();
+    toast.success("Teacher deleted");
+  };
+
+  const toggleClassAssign = (cid: string) => {
+    setTForm((f) => ({
+      ...f,
+      assignedClasses: f.assignedClasses.includes(cid)
+        ? f.assignedClasses.filter((id) => id !== cid)
+        : [...f.assignedClasses, cid],
+    }));
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="Manage Teachers"
+        description="Add, edit, and manage teacher accounts"
+      />
+      <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          data-ocid="teacher.manage.open_modal_button"
+          onClick={() => {
+            setShowAddTeacher(!showAddTeacher);
+            setEditTeacherId(null);
+            setTForm({
+              name: "",
+              email: "",
+              password: "",
+              phone: "",
+              subject: "",
+              qualification: "",
+              assignedClasses: [],
+            });
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+        >
+          <PlusCircle className="w-4 h-4" />
+          Add Teacher
+        </button>
+      </div>
+
+      {showAddTeacher && (
+        <div
+          className="bg-white rounded-2xl border border-border p-6 mb-6"
+          data-ocid="teacher.manage.panel"
+        >
+          <h3 className="font-semibold mb-4">
+            {editTeacherId ? "Edit Teacher" : "Add New Teacher"}
+          </h3>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {[
+              {
+                label: "Full Name *",
+                key: "name",
+                placeholder: "Dr. Ramesh Kumar",
+              },
+              {
+                label: "Email *",
+                key: "email",
+                placeholder: "teacher@school.edu",
+              },
+              { label: "Password *", key: "password", placeholder: "Password" },
+              { label: "Phone", key: "phone", placeholder: "+91 9876543210" },
+              { label: "Subject", key: "subject", placeholder: "Mathematics" },
+              {
+                label: "Qualification",
+                key: "qualification",
+                placeholder: "M.Sc, B.Ed",
+              },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key}>
+                <Label>{label}</Label>
+                <Input
+                  placeholder={placeholder}
+                  type={key === "password" ? "password" : "text"}
+                  value={
+                    (tForm as Record<string, string | string[]>)[key] as string
+                  }
+                  onChange={(e) =>
+                    setTForm((f) => ({ ...f, [key]: e.target.value }))
+                  }
+                  data-ocid={`teacher.manage.${key}.input`}
+                  className="mt-1"
+                />
+              </div>
+            ))}
+            <div className="sm:col-span-2">
+              <Label className="mb-2 block">Assigned Classes</Label>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-40 overflow-y-auto border border-border rounded-lg p-3">
+                {allClasses.map((c) => (
+                  <label
+                    key={c.id}
+                    className="flex items-center gap-1.5 cursor-pointer text-xs"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={tForm.assignedClasses.includes(c.id)}
+                      onChange={() => toggleClassAssign(c.id)}
+                      data-ocid="teacher.manage.classes.checkbox"
+                      className="w-3.5 h-3.5"
+                    />
+                    {c.className}-{c.section}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3 mt-4">
+            <button
+              type="button"
+              data-ocid="teacher.manage.save_button"
+              onClick={handleAddTeacher}
+              className="px-4 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+            >
+              {editTeacherId ? "Save Changes" : "Add Teacher"}
+            </button>
+            <button
+              type="button"
+              data-ocid="teacher.manage.cancel_button"
+              onClick={() => setShowAddTeacher(false)}
+              className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-secondary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+        <Table data-ocid="teacher.manage.table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Subject</TableHead>
+              <TableHead>Qualification</TableHead>
+              <TableHead>Classes</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {teacherList.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                  data-ocid="teacher.manage.empty_state"
+                >
+                  No teachers added yet. Click "Add Teacher" to begin.
+                </TableCell>
+              </TableRow>
+            )}
+            {teacherList.map((t, idx) => {
+              const assigned = allClasses.filter((c) => c.teacherId === t.id);
+              return (
+                <TableRow
+                  key={t.id}
+                  data-ocid={`teacher.manage.row.item.${idx + 1}`}
+                >
+                  <TableCell className="font-medium">{t.name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {t.email}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {t.phone || "—"}
+                  </TableCell>
+                  <TableCell>{t.subject || "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {t.qualification || "—"}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {assigned.length > 0
+                      ? assigned
+                          .map((c) => `${c.className}-${c.section}`)
+                          .join(", ")
+                      : "None"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        data-ocid={`teacher.manage.edit_button.${idx + 1}`}
+                        onClick={() => handleEditTeacher(t)}
+                        className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        data-ocid={`teacher.manage.delete_button.${idx + 1}`}
+                        onClick={() => handleDeleteTeacher(t.id)}
+                        className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function AdminSchoolStudents() {
+  const [studentList, setStudentList] = useState(getStudents());
+  const [filterClass, setFilterClass] = useState("");
+  const [showAddStudent, setShowAddStudent] = useState(false);
+  const [editStudentId, setEditStudentId] = useState<string | null>(null);
+  const allClasses = getClasses();
+  const [sForm, setSForm] = useState({
+    name: "",
+    classId: "",
+    section: "A" as const,
+    rollNumber: "",
+    parentName: "",
+    parentPhone: "",
+    dateOfBirth: "",
+  });
+
+  const refreshStudents = () => setStudentList(getStudents());
+  const filtered = filterClass
+    ? studentList.filter((s) => s.classId === filterClass)
+    : studentList;
+
+  const handleAddStudent = () => {
+    if (!sForm.name || !sForm.classId || !sForm.rollNumber) {
+      toast.error("Name, class and roll number required");
+      return;
+    }
+    if (editStudentId) {
+      updateStudent(editStudentId, sForm);
+      toast.success("Student updated!");
+      setEditStudentId(null);
+    } else {
+      addStudent(sForm);
+      toast.success("Student added!");
+    }
+    setSForm({
+      name: "",
+      classId: "",
+      section: "A",
+      rollNumber: "",
+      parentName: "",
+      parentPhone: "",
+      dateOfBirth: "",
+    });
+    setShowAddStudent(false);
+    refreshStudents();
+  };
+
+  const handleDeleteStudent = (id: string) => {
+    deleteStudent(id);
+    refreshStudents();
+    toast.success("Student deleted");
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="School Students"
+        description="Manage student enrollments by class"
+      />
+      <div className="flex flex-wrap gap-3 justify-between mb-4">
+        <select
+          value={filterClass}
+          onChange={(e) => setFilterClass(e.target.value)}
+          data-ocid="admin.students.select"
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-white"
+        >
+          <option value="">All Classes</option>
+          {allClasses.map((c) => (
+            <option key={c.id} value={c.id}>
+              Class {c.className} - {c.section}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          data-ocid="admin.students.open_modal_button"
+          onClick={() => {
+            setShowAddStudent(!showAddStudent);
+            setEditStudentId(null);
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+        >
+          <PlusCircle className="w-4 h-4" /> Add Student
+        </button>
+      </div>
+
+      {showAddStudent && (
+        <div
+          className="bg-white rounded-2xl border border-border p-6 mb-6"
+          data-ocid="admin.students.panel"
+        >
+          <h3 className="font-semibold mb-4">
+            {editStudentId ? "Edit Student" : "Add New Student"}
+          </h3>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {[
+              {
+                label: "Full Name *",
+                key: "name",
+                placeholder: "Rahul Sharma",
+              },
+              { label: "Roll Number *", key: "rollNumber", placeholder: "001" },
+              {
+                label: "Parent Name",
+                key: "parentName",
+                placeholder: "Mr. Sharma",
+              },
+              {
+                label: "Parent Phone",
+                key: "parentPhone",
+                placeholder: "+91 9876543210",
+              },
+              {
+                label: "Date of Birth",
+                key: "dateOfBirth",
+                type: "date" as const,
+              },
+            ].map(({ label, key, placeholder, type }) => (
+              <div key={key}>
+                <Label>{label}</Label>
+                <Input
+                  type={type || "text"}
+                  placeholder={placeholder}
+                  value={(sForm as Record<string, string>)[key]}
+                  onChange={(e) =>
+                    setSForm((f) => ({ ...f, [key]: e.target.value }))
+                  }
+                  data-ocid={`admin.students.${key}.input`}
+                  className="mt-1"
+                />
+              </div>
+            ))}
+            <div>
+              <Label>Class *</Label>
+              <select
+                value={sForm.classId}
+                onChange={(e) =>
+                  setSForm((f) => ({ ...f, classId: e.target.value }))
+                }
+                data-ocid="admin.students.class.select"
+                className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm bg-white"
+              >
+                <option value="">-- Select Class --</option>
+                {allClasses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    Class {c.className} - {c.section}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-3 mt-4">
+            <button
+              type="button"
+              data-ocid="admin.students.save_button"
+              onClick={handleAddStudent}
+              className="px-4 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+            >
+              {editStudentId ? "Save Changes" : "Add Student"}
+            </button>
+            <button
+              type="button"
+              data-ocid="admin.students.cancel_button"
+              onClick={() => setShowAddStudent(false)}
+              className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-secondary"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+        <Table data-ocid="admin.students.table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Roll No</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Class</TableHead>
+              <TableHead>Parent Name</TableHead>
+              <TableHead>Parent Phone</TableHead>
+              <TableHead>DOB</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                  data-ocid="admin.students.empty_state"
+                >
+                  No students found.
+                </TableCell>
+              </TableRow>
+            )}
+            {filtered.map((s, idx) => {
+              const cls = allClasses.find((c) => c.id === s.classId);
+              return (
+                <TableRow
+                  key={s.id}
+                  data-ocid={`admin.students.row.item.${idx + 1}`}
+                >
+                  <TableCell className="font-mono text-xs">
+                    {s.rollNumber}
+                  </TableCell>
+                  <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell className="text-sm">
+                    {cls ? `${cls.className}-${cls.section}` : "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {s.parentName || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {s.parentPhone || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {s.dateOfBirth || "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        data-ocid={`admin.students.delete_button.${idx + 1}`}
+                        onClick={() => handleDeleteStudent(s.id)}
+                        className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function AdminSchoolClasses() {
+  const [classList, setClassList] = useState(getClasses());
+  const teacherList = getTeachers();
+
+  const handleAssign = (classId: string, teacherId: string) => {
+    updateClassTeacher(classId, teacherId);
+    setClassList(getClasses());
+    toast.success("Teacher assigned!");
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="Classes"
+        description="Assign teachers to classes (Nursery to 12th, Sections A/B/C)"
+      />
+      <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+        <Table data-ocid="admin.classes.table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Class</TableHead>
+              <TableHead>Section</TableHead>
+              <TableHead>Assigned Teacher</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {classList.map((c, idx) => {
+              const currentTeacher = teacherList.find(
+                (t) => t.id === c.teacherId,
+              );
+              return (
+                <TableRow
+                  key={c.id}
+                  data-ocid={`admin.classes.row.item.${idx + 1}`}
+                >
+                  <TableCell className="font-medium">
+                    Class {c.className}
+                  </TableCell>
+                  <TableCell>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                      Section {c.section}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <select
+                      defaultValue={c.teacherId}
+                      onChange={(e) => handleAssign(c.id, e.target.value)}
+                      data-ocid={`admin.classes.teacher.select.${idx + 1}`}
+                      className="border border-border rounded-lg px-3 py-1.5 text-sm bg-white w-full max-w-xs"
+                    >
+                      <option value="">— Unassigned —</option>
+                      {teacherList.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.subject})
+                        </option>
+                      ))}
+                    </select>
+                  </TableCell>
+                  <TableCell>
+                    {currentTeacher ? (
+                      <span className="text-xs text-green-600 font-semibold">
+                        Assigned
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Unassigned
+                      </span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function AdminAttendanceReports() {
+  const [filterClassAtt, setFilterClassAtt] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const allClasses = getClasses();
+  const allStudents = getStudents();
+  const allAtt = getAttendance();
+
+  const filtered = allAtt.filter((a) => {
+    if (filterClassAtt && a.classId !== filterClassAtt) return false;
+    if (filterDate && a.date !== filterDate) return false;
+    return true;
+  });
+
+  const presentCount = filtered.filter((a) => a.status === "Present").length;
+  const absentCount = filtered.filter((a) => a.status === "Absent").length;
+  const lateCount = filtered.filter((a) => a.status === "Late").length;
+
+  const attStatusColor: Record<string, string> = {
+    Present: "bg-green-100 text-green-700",
+    Absent: "bg-red-100 text-red-700",
+    Late: "bg-yellow-100 text-yellow-700",
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="Attendance Reports"
+        description="View and filter student attendance records"
+      />
+      <div className="flex flex-wrap gap-3 mb-4">
+        <select
+          value={filterClassAtt}
+          onChange={(e) => setFilterClassAtt(e.target.value)}
+          data-ocid="admin.attendance.class.select"
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-white"
+        >
+          <option value="">All Classes</option>
+          {allClasses.map((c) => (
+            <option key={c.id} value={c.id}>
+              Class {c.className} - {c.section}
+            </option>
+          ))}
+        </select>
+        <Input
+          type="date"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+          data-ocid="admin.attendance.date.input"
+          className="w-auto"
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {[
+          { label: "Present", count: presentCount, color: "text-green-600" },
+          { label: "Absent", count: absentCount, color: "text-red-600" },
+          { label: "Late", count: lateCount, color: "text-yellow-600" },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className="bg-white rounded-xl border border-border p-4 text-center"
+          >
+            <p className="text-sm text-muted-foreground">{s.label}</p>
+            <p className={`text-2xl font-bold ${s.color}`}>{s.count}</p>
+          </div>
+        ))}
+      </div>
+      <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+        <Table data-ocid="admin.attendance.table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Student</TableHead>
+              <TableHead>Roll</TableHead>
+              <TableHead>Class</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="text-center py-8 text-muted-foreground"
+                  data-ocid="admin.attendance.empty_state"
+                >
+                  No attendance records found.
+                </TableCell>
+              </TableRow>
+            )}
+            {filtered.slice(0, 50).map((a, idx) => {
+              const stu = allStudents.find((s) => s.id === a.studentId);
+              const cls = allClasses.find((c) => c.id === a.classId);
+              return (
+                <TableRow
+                  key={a.id}
+                  data-ocid={`admin.attendance.row.item.${idx + 1}`}
+                >
+                  <TableCell className="font-medium">
+                    {stu?.name || "—"}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {stu?.rollNumber || "—"}
+                  </TableCell>
+                  <TableCell>
+                    {cls ? `${cls.className}-${cls.section}` : "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {a.date}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${attStatusColor[a.status] || ""}`}
+                    >
+                      {a.status}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function AdminClassTracking() {
+  const [filterTeacher, setFilterTeacher] = useState("");
+  const [filterTrackDate, setFilterTrackDate] = useState("");
+  const allTracking = getClassTracking();
+  const allClasses = getClasses();
+  const allTeachers = getTeachers();
+
+  const filtered = allTracking.filter((t) => {
+    if (filterTeacher && t.teacherId !== filterTeacher) return false;
+    if (filterTrackDate && t.date !== filterTrackDate) return false;
+    return true;
+  });
+
+  return (
+    <div>
+      <SectionHeader
+        title="Class Tracking"
+        description="All classes conducted by teachers"
+      />
+      <div className="flex flex-wrap gap-3 mb-4">
+        <select
+          value={filterTeacher}
+          onChange={(e) => setFilterTeacher(e.target.value)}
+          data-ocid="admin.tracking.teacher.select"
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-white"
+        >
+          <option value="">All Teachers</option>
+          {allTeachers.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+        <Input
+          type="date"
+          value={filterTrackDate}
+          onChange={(e) => setFilterTrackDate(e.target.value)}
+          data-ocid="admin.tracking.date.input"
+          className="w-auto"
+        />
+      </div>
+      <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+        <Table data-ocid="admin.tracking.table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Teacher</TableHead>
+              <TableHead>Class</TableHead>
+              <TableHead>Subject</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Topic Covered</TableHead>
+              <TableHead>Homework</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                  data-ocid="admin.tracking.empty_state"
+                >
+                  No class tracking records yet.
+                </TableCell>
+              </TableRow>
+            )}
+            {filtered.map((t, idx) => {
+              const teacher = allTeachers.find((tc) => tc.id === t.teacherId);
+              const cls = allClasses.find((c) => c.id === t.classId);
+              return (
+                <TableRow
+                  key={t.id}
+                  data-ocid={`admin.tracking.row.item.${idx + 1}`}
+                >
+                  <TableCell className="font-medium">
+                    {teacher?.name || "—"}
+                  </TableCell>
+                  <TableCell>
+                    {cls ? `${cls.className}-${cls.section}` : "—"}
+                  </TableCell>
+                  <TableCell>{t.subject}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {t.date}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {t.startTime}–{t.endTime}
+                  </TableCell>
+                  <TableCell className="max-w-[180px] truncate">
+                    {t.topicCovered}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {t.homeworkGiven || "—"}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function AdminTeacherNotifications() {
+  const [notifList, setNotifList] = useState(getNotifications());
+  const [nTitle, setNTitle] = useState("");
+  const [nMessage, setNMessage] = useState("");
+  const [nTarget, setNTarget] = useState("all");
+  const teacherListForNotif = getTeachers();
+
+  const handleSendNotif = () => {
+    if (!nTitle || !nMessage) {
+      toast.error("Title and message required");
+      return;
+    }
+    addNotification({
+      title: nTitle,
+      message: nMessage,
+      sentBy: "Admin",
+      sentTo: nTarget,
+      date: new Date().toLocaleDateString("en-IN"),
+    });
+    toast.success("Notification sent!");
+    setNTitle("");
+    setNMessage("");
+    setNTarget("all");
+    setNotifList(getNotifications());
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="Teacher Notifications"
+        description="Send messages to teachers"
+      />
+      <div className="bg-white rounded-2xl border border-border p-6 mb-6">
+        <h3 className="font-semibold mb-4">Compose Notification</h3>
+        <div className="space-y-4">
+          <div>
+            <Label>Send To</Label>
+            <select
+              value={nTarget}
+              onChange={(e) => setNTarget(e.target.value)}
+              data-ocid="admin.notifications.send_to.select"
+              className="mt-1 w-full border border-border rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              <option value="all">All Teachers</option>
+              {teacherListForNotif.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label>Title</Label>
+            <Input
+              value={nTitle}
+              onChange={(e) => setNTitle(e.target.value)}
+              placeholder="Notification title"
+              data-ocid="admin.notifications.title.input"
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label>Message</Label>
+            <Textarea
+              value={nMessage}
+              onChange={(e) => setNMessage(e.target.value)}
+              placeholder="Write your message..."
+              data-ocid="admin.notifications.message.textarea"
+              className="mt-1"
+              rows={4}
+            />
+          </div>
+          <button
+            type="button"
+            data-ocid="admin.notifications.submit_button"
+            onClick={handleSendNotif}
+            className="px-5 py-2 bg-brand-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
+            Send Notification
+          </button>
+        </div>
+      </div>
+
+      <h3 className="font-semibold mb-3">Sent Notifications</h3>
+      {notifList.length === 0 ? (
+        <div
+          className="bg-white rounded-2xl border border-border p-10 text-center"
+          data-ocid="admin.notifications.empty_state"
+        >
+          <p className="text-muted-foreground text-sm">
+            No notifications sent yet.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {notifList
+            .slice()
+            .reverse()
+            .map((n, idx) => {
+              const teacher = teacherListForNotif.find(
+                (t) => t.id === n.sentTo,
+              );
+              return (
+                <div
+                  key={n.id}
+                  className="bg-white rounded-xl border border-border p-4"
+                  data-ocid={`admin.notifications.item.${idx + 1}`}
+                >
+                  <p className="font-semibold text-sm">{n.title}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {n.message}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {n.date} · To:{" "}
+                    {n.sentTo === "all"
+                      ? "All Teachers"
+                      : teacher?.name || n.sentTo}
+                  </p>
+                </div>
+              );
+            })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AdminDashboard() {
@@ -340,7 +1383,6 @@ export function AdminDashboard() {
     toast.success("All referral data has been reset to zero.");
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initial load only
   useEffect(() => {
     setLeads(getLeads());
     setFeAccounts(getFEAccounts());
@@ -2573,6 +3615,161 @@ export function AdminDashboard() {
             )}
           </div>
         );
+
+      case "teacher-analytics": {
+        const teachers = getTeachers();
+        const students = getStudents();
+        const today = new Date().toISOString().slice(0, 10);
+        const allAtt = getAttendance().filter((a) => a.date === today);
+        const presentToday = allAtt.filter(
+          (a) => a.status === "Present",
+        ).length;
+        const attPct =
+          allAtt.length > 0
+            ? Math.round((presentToday / allAtt.length) * 100)
+            : 0;
+        const allTracking = getClassTracking().filter((t) => t.date === today);
+        return (
+          <div>
+            <SectionHeader
+              title="Teacher Analytics"
+              description="Overview of teacher management system"
+            />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                {
+                  label: "Total Teachers",
+                  value: teachers.length,
+                  color: "text-blue-600",
+                },
+                {
+                  label: "Total Students",
+                  value: students.length,
+                  color: "text-green-600",
+                },
+                {
+                  label: "Attendance Today",
+                  value: `${attPct}%`,
+                  color: "text-orange-600",
+                },
+                {
+                  label: "Classes Today",
+                  value: allTracking.length,
+                  color: "text-purple-600",
+                },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="bg-white rounded-2xl p-5 border border-border shadow-sm"
+                >
+                  <p className="text-sm text-muted-foreground font-medium mb-2">
+                    {s.label}
+                  </p>
+                  <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      case "manage-teachers":
+        return <AdminManageTeachers />;
+
+      case "school-students":
+        return <AdminSchoolStudents />;
+
+      case "school-classes":
+        return <AdminSchoolClasses />;
+
+      case "teacher-attendance":
+        return <AdminAttendanceReports />;
+
+      case "class-tracking-admin":
+        return <AdminClassTracking />;
+
+      case "teacher-homework": {
+        const allHw = getHomework();
+        const allClasses = getClasses();
+        const allTeachers = getTeachers();
+        return (
+          <div>
+            <SectionHeader
+              title="Homework"
+              description="All homework assigned by teachers"
+            />
+            <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+              <Table data-ocid="admin.homework.table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Teacher</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>File</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allHw.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="text-center py-8 text-muted-foreground"
+                        data-ocid="admin.homework.empty_state"
+                      >
+                        No homework assigned yet.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {allHw.map((hw, idx) => {
+                    const teacher = allTeachers.find(
+                      (t) => t.id === hw.teacherId,
+                    );
+                    const cls = allClasses.find((c) => c.id === hw.classId);
+                    return (
+                      <TableRow
+                        key={hw.id}
+                        data-ocid={`admin.homework.row.item.${idx + 1}`}
+                      >
+                        <TableCell className="font-medium">
+                          {teacher?.name || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {cls ? `${cls.className}-${cls.section}` : "—"}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {hw.title}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
+                          {hw.description || "—"}
+                        </TableCell>
+                        <TableCell className="text-sm">{hw.dueDate}</TableCell>
+                        <TableCell>
+                          {hw.fileUrl ? (
+                            <a
+                              href={hw.fileUrl}
+                              download
+                              className="text-xs text-blue-600 underline"
+                            >
+                              Download
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        );
+      }
+
+      case "teacher-notifications":
+        return <AdminTeacherNotifications />;
 
       default:
         return null;
