@@ -26,6 +26,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   type AttendanceStatus,
   type TeacherAccount,
@@ -42,6 +43,7 @@ import {
   getStudentsByClass,
   getTeacherByEmail,
   getTeacherById,
+  getTeachers,
   markNotificationRead,
   updateTeacher,
 } from "../utils/teacherStore";
@@ -66,112 +68,333 @@ function getSession(): TeacherSession | null {
 function LoginScreen({
   onLogin,
 }: { onLogin: (session: TeacherSession) => void }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const {
+    login,
+    clear,
+    isLoggingIn,
+    isLoginSuccess,
+    isLoginError,
+    identity,
+    isInitializing,
+  } = useInternetIdentity();
+  const [step, setStep] = useState<"auth" | "select">("auth");
+  const [teachers, setTeachers] = useState<TeacherAccount[]>([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    setError("");
-    setLoading(true);
-    setTimeout(() => {
-      const teacher = getTeacherByEmail(email);
-      if (!teacher) {
-        setError("No teacher account found with this email.");
-        setLoading(false);
-        return;
+  // When II login succeeds, move to profile selection
+  useEffect(() => {
+    if (isLoginSuccess && identity) {
+      const allTeachers = getTeachers();
+      setTeachers(allTeachers);
+      if (allTeachers.length === 1) {
+        // Auto-select if only one teacher
+        const t = allTeachers[0];
+        const session: TeacherSession = {
+          teacherId: t.id,
+          name: t.name,
+          email: t.email,
+        };
+        sessionStorage.setItem("teacherSession", JSON.stringify(session));
+        onLogin(session);
+      } else {
+        setStep("select");
       }
-      if (teacher.password !== password) {
-        setError("Incorrect password. Please try again.");
-        setLoading(false);
-        return;
-      }
-      const session: TeacherSession = {
-        teacherId: teacher.id,
-        name: teacher.name,
-        email: teacher.email,
-      };
-      sessionStorage.setItem("teacherSession", JSON.stringify(session));
-      onLogin(session);
-      setLoading(false);
-    }, 300);
+    }
+    if (isLoginError) {
+      setError("Internet Identity login failed. Please try again.");
+    }
+  }, [isLoginSuccess, isLoginError, identity, onLogin]);
+
+  const handleSelectProfile = () => {
+    if (!selectedTeacherId) {
+      setError("Please select your teacher profile.");
+      return;
+    }
+    const t = teachers.find((tc) => tc.id === selectedTeacherId);
+    if (!t) return;
+    const session: TeacherSession = {
+      teacherId: t.id,
+      name: t.name,
+      email: t.email,
+    };
+    sessionStorage.setItem("teacherSession", JSON.stringify(session));
+    onLogin(session);
+  };
+
+  const handleProceedWithoutProfile = () => {
+    if (!identity) return;
+    const principalStr = identity.getPrincipal().toString();
+    const shortId = principalStr.slice(0, 8);
+    const session: TeacherSession = {
+      teacherId: `ii-${shortId}`,
+      name: "Teacher",
+      email: "",
+    };
+    sessionStorage.setItem("teacherSession", JSON.stringify(session));
+    onLogin(session);
   };
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
-      style={{ background: "oklch(0.97 0.01 255)" }}
+      className="min-h-screen flex items-center justify-center relative overflow-hidden"
+      style={{
+        background:
+          "linear-gradient(135deg, oklch(0.25 0.12 262) 0%, oklch(0.35 0.15 262) 50%, oklch(0.45 0.18 262) 100%)",
+      }}
     >
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+          className="absolute -top-20 -right-20 w-80 h-80 rounded-full opacity-10"
+          style={{ background: "oklch(0.9 0.15 80)" }}
+        />
+        <div
+          className="absolute -bottom-32 -left-20 w-96 h-96 rounded-full opacity-10"
+          style={{ background: "oklch(0.85 0.12 200)" }}
+        />
+        <div
+          className="absolute top-1/3 right-10 w-20 h-20 rounded-full opacity-10"
+          style={{ background: "white" }}
+        />
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 32 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-xl border border-border p-8 w-full max-w-md mx-4"
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative w-full max-w-md mx-4"
       >
-        <div className="text-center mb-8">
+        {/* Header branding */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2 text-white/90 text-sm font-medium mb-4">
+            <School className="w-4 h-4" />
+            Openframe Education
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+          {/* Top accent bar */}
           <div
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
-            style={{ background: "oklch(0.45 0.18 262)" }}
-          >
-            <GraduationCap className="w-7 h-7 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Teacher Login</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            OpenFrame Education Teacher Portal
-          </p>
-        </div>
+            className="h-1.5 w-full"
+            style={{
+              background:
+                "linear-gradient(90deg, oklch(0.55 0.2 80) 0%, oklch(0.65 0.22 75) 100%)",
+            }}
+          />
 
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="t-email">Email Address</Label>
-            <Input
-              id="t-email"
-              type="email"
-              placeholder="teacher@openframe.edu"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              data-ocid="teacher.login.input"
-              className="mt-1"
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            />
-          </div>
-          <div>
-            <Label htmlFor="t-pass">Password</Label>
-            <Input
-              id="t-pass"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              data-ocid="teacher.login.input"
-              className="mt-1"
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            />
-          </div>
-
-          {error && (
-            <div
-              className="bg-red-50 text-red-700 text-sm rounded-lg px-4 py-3"
-              data-ocid="teacher.login.error_state"
-            >
-              {error}
+          <div className="p-8">
+            {/* Icon and title */}
+            <div className="text-center mb-8">
+              <div
+                className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 shadow-lg"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.45 0.18 262) 0%, oklch(0.55 0.2 250) 100%)",
+                }}
+              >
+                <GraduationCap className="w-10 h-10 text-white" />
+              </div>
+              <h1
+                className="text-2xl font-bold"
+                style={{ color: "oklch(0.25 0.12 262)" }}
+              >
+                Teacher Portal
+              </h1>
+              <p className="text-muted-foreground text-sm mt-1.5">
+                {step === "auth"
+                  ? "Sign in with Internet Identity to access your dashboard"
+                  : "Select your teacher profile to continue"}
+              </p>
             </div>
-          )}
 
-          <Button
-            className="w-full"
-            onClick={handleLogin}
-            disabled={loading}
-            data-ocid="teacher.login.primary_button"
-            style={{ background: "oklch(0.45 0.18 262)" }}
-          >
-            {loading ? "Logging in..." : "Login as Teacher"}
-          </Button>
+            {step === "auth" ? (
+              <div className="space-y-4">
+                {/* Internet Identity info box */}
+                <div
+                  className="rounded-xl p-4 border"
+                  style={{
+                    background: "oklch(0.97 0.02 262)",
+                    borderColor: "oklch(0.88 0.06 262)",
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mt-0.5"
+                      style={{ background: "oklch(0.45 0.18 262)" }}
+                    >
+                      <span className="text-white text-xs font-bold">II</span>
+                    </div>
+                    <div>
+                      <p
+                        className="text-sm font-semibold"
+                        style={{ color: "oklch(0.3 0.12 262)" }}
+                      >
+                        Internet Identity
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Secure, password-free login powered by the Internet
+                        Computer. Your identity is private and fully under your
+                        control.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {error && (
+                  <div
+                    className="bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3 border border-red-100"
+                    data-ocid="teacher.login.error_state"
+                  >
+                    {error}
+                  </div>
+                )}
+
+                <Button
+                  className="w-full h-12 text-base font-semibold rounded-xl shadow-md"
+                  onClick={login}
+                  disabled={isLoggingIn || isInitializing}
+                  data-ocid="teacher.login.primary_button"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, oklch(0.45 0.18 262) 0%, oklch(0.55 0.2 250) 100%)",
+                  }}
+                >
+                  {isLoggingIn ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Connecting...
+                    </span>
+                  ) : isInitializing ? (
+                    "Initializing..."
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <GraduationCap className="w-5 h-5" />
+                      Login with Internet Identity
+                    </span>
+                  )}
+                </Button>
+
+                {/* Feature highlights */}
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  {[
+                    { icon: "🔒", label: "Secure" },
+                    { icon: "🚫", label: "No Password" },
+                    { icon: "⚡", label: "Instant Access" },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="text-center py-2 px-1 rounded-lg"
+                      style={{ background: "oklch(0.97 0.01 262)" }}
+                    >
+                      <div className="text-lg mb-0.5">{item.icon}</div>
+                      <div className="text-xs text-muted-foreground font-medium">
+                        {item.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {teachers.length === 0 ? (
+                  <div className="text-center py-4">
+                    <div className="text-4xl mb-3">👩‍🏫</div>
+                    <p className="font-semibold text-foreground">
+                      No teacher profiles found
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1 mb-4">
+                      Ask your admin to create a teacher account for you.
+                    </p>
+                    <Button
+                      className="w-full h-11 rounded-xl"
+                      onClick={handleProceedWithoutProfile}
+                      data-ocid="teacher.login.secondary_button"
+                      style={{ background: "oklch(0.45 0.18 262)" }}
+                    >
+                      Continue to Dashboard
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      {teachers.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setSelectedTeacherId(t.id)}
+                          className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${selectedTeacherId === t.id ? "border-blue-500 bg-blue-50" : "border-border hover:border-blue-200 bg-white"}`}
+                          data-ocid="teacher.profile.select_button"
+                        >
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: "oklch(0.92 0.06 262)" }}
+                          >
+                            <User
+                              className="w-5 h-5"
+                              style={{ color: "oklch(0.45 0.18 262)" }}
+                            />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm text-foreground">
+                              {t.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t.subject} · {t.qualification}
+                            </p>
+                          </div>
+                          {selectedTeacherId === t.id && (
+                            <div
+                              className="ml-auto w-5 h-5 rounded-full flex items-center justify-center"
+                              style={{ background: "oklch(0.45 0.18 262)" }}
+                            >
+                              <CheckSquare className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    {error && (
+                      <div className="bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3">
+                        {error}
+                      </div>
+                    )}
+
+                    <Button
+                      className="w-full h-11 rounded-xl font-semibold"
+                      onClick={handleSelectProfile}
+                      data-ocid="teacher.login.primary_button"
+                      style={{ background: "oklch(0.45 0.18 262)" }}
+                    >
+                      Continue as Selected Teacher
+                    </Button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clear();
+                        setStep("auth");
+                        setSelectedTeacherId("");
+                        setError("");
+                      }}
+                      className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      ← Sign in with a different account
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="mt-6 text-center">
+        {/* Back to home */}
+        <div className="text-center mt-6">
           <a
             href="/"
-            className="text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1"
+            className="text-white/70 hover:text-white text-sm flex items-center justify-center gap-1.5 transition-colors"
+            data-ocid="teacher.login.home_link"
           >
             <Home className="w-3.5 h-3.5" />
             Back to Home
@@ -1723,11 +1946,17 @@ function ProfileSection({
 
 export function TeacherManagementPage() {
   const [session, setSession] = useState<TeacherSession | null>(getSession);
+  const { clear } = useInternetIdentity();
 
   const handleLogin = (s: TeacherSession) => setSession(s);
   const handleLogout = () => {
     sessionStorage.removeItem("teacherSession");
     setSession(null);
+    try {
+      clear();
+    } catch (_) {
+      /* ignore if not authenticated */
+    }
   };
 
   if (!session) return <LoginScreen onLogin={handleLogin} />;

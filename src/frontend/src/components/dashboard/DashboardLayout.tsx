@@ -19,6 +19,8 @@ interface DashboardLayoutProps {
   activeSection: string;
   onSectionChange: (id: string) => void;
   children: React.ReactNode;
+  /** Optional extra cleanup to run on logout (e.g. clear email-based auth) */
+  onLogout?: () => void;
 }
 
 export function DashboardLayout({
@@ -29,6 +31,7 @@ export function DashboardLayout({
   activeSection,
   onSectionChange,
   children,
+  onLogout,
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { clear, identity } = useInternetIdentity();
@@ -36,6 +39,7 @@ export function DashboardLayout({
 
   const handleLogout = async () => {
     await clear();
+    onLogout?.();
     navigate({ to: "/" });
   };
 

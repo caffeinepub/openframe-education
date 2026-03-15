@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { BookOpen, GraduationCap, Menu, X } from "lucide-react";
+import { BookOpen, GraduationCap, Menu, UserCheck, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
@@ -76,6 +76,18 @@ export function Navbar() {
             >
               <BookOpen className="w-3.5 h-3.5" />
               Pragati Magazine
+            </Link>
+            <Link
+              to="/teacher-dashboard"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ml-1"
+              style={{
+                background: "oklch(0.94 0.05 260)",
+                color: "oklch(0.40 0.18 260)",
+              }}
+              data-ocid="nav.teacher.link"
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              Teacher Login
             </Link>
           </div>
 
@@ -156,6 +168,19 @@ export function Navbar() {
               >
                 <BookOpen className="w-4 h-4" />
                 Pragati Magazine
+              </Link>
+              <Link
+                to="/teacher-dashboard"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg"
+                style={{
+                  background: "oklch(0.94 0.05 260)",
+                  color: "oklch(0.40 0.18 260)",
+                }}
+                data-ocid="nav.teacher.mobile.link"
+              >
+                <UserCheck className="w-4 h-4" />
+                Teacher Login
               </Link>
               <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-border">
                 <Button
