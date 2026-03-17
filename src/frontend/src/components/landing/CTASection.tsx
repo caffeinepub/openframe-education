@@ -86,7 +86,6 @@ export function CTASection() {
             {[
               { value: "10,000+", label: "Students Enrolled" },
               { value: "50+", label: "Expert Teachers" },
-              { value: "₹250", label: "Starting Monthly Fee" },
               { value: "100%", label: "Satisfaction Rate" },
             ].map(({ value, label }) => (
               <div key={label} className="text-center">

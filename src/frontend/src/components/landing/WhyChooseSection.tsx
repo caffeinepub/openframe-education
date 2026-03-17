@@ -12,9 +12,8 @@ const reasons = [
   {
     icon: IndianRupee,
     title: "Affordable Pricing",
-    description:
-      "Plans from ₹250–₹500/month — less than 1 hour of tuition cost",
-    highlight: "₹250 – ₹500/month",
+    description: "Affordable plans — less than 1 hour of tuition cost",
+    highlight: "Affordable Plans",
   },
   {
     icon: MapPin,

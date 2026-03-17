@@ -23,10 +23,10 @@ const CLASS_LEVELS = [
 ];
 
 const COURSE_OPTIONS = [
-  { value: "Basic", label: "Basic Plan – ₹250/mo" },
-  { value: "Standard", label: "Standard Plan – ₹350/mo" },
-  { value: "Premium", label: "Premium Plan – ₹500/mo" },
-  { value: "Pragati Magazine", label: "Pragati Study Magazine – ₹200" },
+  { value: "Basic", label: "Basic Plan" },
+  { value: "Standard", label: "Standard Plan" },
+  { value: "Premium", label: "Premium Plan" },
+  { value: "Pragati Magazine", label: "Pragati Study Magazine" },
 ];
 
 export function EnrollmentFormPage() {

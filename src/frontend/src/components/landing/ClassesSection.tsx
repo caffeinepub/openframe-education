@@ -104,22 +104,6 @@ export function ClassesSection() {
                   </div>
                 </div>
 
-                {/* Fee */}
-                <div
-                  className="flex items-center justify-between mb-4 p-3 rounded-xl"
-                  style={{ background: "oklch(0.97 0.02 255)" }}
-                >
-                  <span className="text-xs text-muted-foreground">
-                    Monthly Fee
-                  </span>
-                  <span
-                    className="font-bold text-lg"
-                    style={{ color: "oklch(0.68 0.19 50)" }}
-                  >
-                    ₹{cls.monthlyFee.toString()}
-                  </span>
-                </div>
-
                 <Button
                   size="sm"
                   onClick={() => router.navigate({ to: "/enroll" })}

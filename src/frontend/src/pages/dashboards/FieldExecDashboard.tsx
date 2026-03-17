@@ -133,35 +133,30 @@ const COURSES = [
   {
     label: "Nursery – UKG",
     subjects: ["EVS", "English", "Maths", "Drawing"],
-    fee: 250,
     color: "oklch(0.55 0.16 165)",
     badge: "Early Learning",
   },
   {
     label: "1st to 5th",
     subjects: ["English", "Maths", "Science", "Social", "Kannada"],
-    fee: 300,
     color: "oklch(0.45 0.18 262)",
     badge: "Primary",
   },
   {
     label: "6th to 8th",
     subjects: ["English", "Maths", "Science", "Social", "Kannada", "Hindi"],
-    fee: 350,
     color: "oklch(0.68 0.19 50)",
     badge: "Middle School",
   },
   {
     label: "9th to 10th",
     subjects: ["English", "Maths", "Science", "Social", "Kannada", "Hindi"],
-    fee: 400,
     color: "oklch(0.6 0.22 15)",
     badge: "Secondary",
   },
   {
     label: "11th to 12th",
     subjects: ["Physics", "Chemistry", "Maths/Biology", "Commerce", "Arts"],
-    fee: 500,
     color: "oklch(0.62 0.2 320)",
     badge: "Senior Secondary",
   },
@@ -1007,23 +1002,11 @@ export function FieldExecDashboard() {
               </div>
             </div>
 
-            {/* Fee + CTA */}
+            {/* CTA */}
             <div
-              className="px-5 py-4 border-t flex items-center justify-between"
+              className="px-5 py-4 border-t flex items-center justify-center"
               style={{ borderColor: "oklch(0.95 0.01 255)" }}
             >
-              <div>
-                <p className="text-xs text-foreground/50">Monthly Fee</p>
-                <p
-                  className="text-xl font-extrabold"
-                  style={{ color: course.color }}
-                >
-                  ₹{course.fee}
-                  <span className="text-xs font-normal text-foreground/50">
-                    /mo
-                  </span>
-                </p>
-              </div>
               <a
                 href={`https://wa.me/${WHATSAPP_NUMBER}?text=I%20want%20to%20enroll%20in%20${encodeURIComponent(course.label)}%20at%20Openframe%20Education`}
                 target="_blank"
@@ -1508,7 +1491,7 @@ export function FieldExecDashboard() {
               "Share in WhatsApp groups of parents and students",
               "Post in local community Facebook/Telegram groups",
               "Distribute the link at tuition centers & schools",
-              "Tell friends about affordable monthly plans (₹250–₹500)",
+              "Tell friends about our affordable monthly plans",
             ].map((tip) => (
               <li
                 key={tip}

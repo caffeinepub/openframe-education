@@ -61,8 +61,7 @@ const features = [
   {
     icon: IndianRupee,
     title: "Low Cost Monthly Plans",
-    description:
-      "Affordable fees starting at just ₹250/month — no hidden charges",
+    description: "Affordable fees — no hidden charges",
     color: "oklch(0.55 0.16 165)",
   },
 ];

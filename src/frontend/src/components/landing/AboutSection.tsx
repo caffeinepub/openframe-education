@@ -57,7 +57,7 @@ export function AboutSection() {
             </p>
             <ul className="space-y-3">
               {[
-                "Affordable monthly fees from ₹250 to ₹500 only",
+                "Affordable monthly fees for all students",
                 "Live interactive classes in English & Kannada medium",
                 "Small batch sizes for personal attention",
                 "Expert trained, certified teachers",
