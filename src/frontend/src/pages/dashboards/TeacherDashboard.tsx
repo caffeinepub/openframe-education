@@ -23,11 +23,8 @@ import {
   BookOpen,
   ClipboardCheck,
   Clock,
-  Eye,
-  EyeOff,
   GraduationCap,
   Loader2,
-  Mail,
   ShieldCheck,
   Upload,
   Users,
@@ -76,7 +73,7 @@ const TEACHER_ID = BigInt(1);
 const MY_STUDENTS = SAMPLE_STUDENTS.slice(0, 4);
 
 export function TeacherDashboard() {
-  const { login, identity, isInitializing, isLoggingIn, isLoginError } =
+  const { login, identity, isInitializing, isLoggingIn, isLoginError, clear } =
     useInternetIdentity();
   const navigate = useNavigate();
 
@@ -104,69 +101,13 @@ export function TeacherDashboard() {
     meetingLink: "",
   });
 
-  // Email/password login state
-  const [emailForm, setEmailForm] = useState({ email: "", password: "" });
-  const [showPassword, setShowPassword] = useState(false);
-  const [emailLoginError, setEmailLoginError] = useState("");
-  const [emailLoginLoading, setEmailLoginLoading] = useState(false);
-  const [isTeacherLoggedIn, setIsTeacherLoggedIn] = useState(() => {
-    try {
-      const auth = localStorage.getItem("teacher_auth");
-      return !!auth;
-    } catch {
-      return false;
-    }
-  });
-
   const createAttendance = useCreateAttendanceRecord();
   const createHomework = useCreateHomework();
   const createMaterial = useCreateStudyMaterial();
   const createSchedule = useCreateScheduledClass();
 
-  const handleEmailLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setEmailLoginError("");
-    setEmailLoginLoading(true);
-
-    try {
-      const raw = localStorage.getItem("openframe_teachers");
-      const teachers: Array<{
-        email: string;
-        password: string;
-        name?: string;
-      }> = raw ? JSON.parse(raw) : [];
-
-      const match = teachers.find(
-        (t) =>
-          t.email.toLowerCase() === emailForm.email.toLowerCase() &&
-          t.password === emailForm.password,
-      );
-
-      if (match) {
-        localStorage.setItem(
-          "teacher_auth",
-          JSON.stringify({
-            email: match.email,
-            name: match.name || match.email,
-          }),
-        );
-        setIsTeacherLoggedIn(true);
-        toast.success("Welcome back!");
-      } else {
-        setEmailLoginError(
-          "Invalid email or password. Please check your credentials.",
-        );
-      }
-    } catch {
-      setEmailLoginError("Something went wrong. Please try again.");
-    } finally {
-      setEmailLoginLoading(false);
-    }
-  };
-
   const handleTeacherLogout = () => {
-    localStorage.removeItem("teacher_auth");
-    setIsTeacherLoggedIn(false);
+    clear();
   };
 
   // Loading state while checking identity
@@ -188,8 +129,8 @@ export function TeacherDashboard() {
     );
   }
 
-  // Login screen when not authenticated
-  if (!identity && !isTeacherLoggedIn) {
+  // Login screen when not authenticated via Internet Identity
+  if (!identity) {
     return (
       <div
         className="min-h-screen flex items-center justify-center p-4"
@@ -203,180 +144,66 @@ export function TeacherDashboard() {
           <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
             {/* Header */}
             <div
-              className="px-8 pt-8 pb-6 text-center"
+              className="px-8 pt-10 pb-8 text-center"
               style={{
                 background:
                   "linear-gradient(135deg, oklch(0.45 0.18 262), oklch(0.33 0.17 265))",
               }}
             >
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 mb-4">
-                <GraduationCap className="w-9 h-9 text-white" />
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 mb-5">
+                <GraduationCap className="w-11 h-11 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-white">Teacher Login</h1>
+              <h1 className="text-2xl font-bold text-white">Teacher Portal</h1>
               <p className="text-white/80 text-sm mt-1">OpenFrame Education</p>
             </div>
 
             {/* Body */}
             <div className="px-8 py-8 space-y-6">
-              {/* Email / Password Section */}
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <Mail className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-gray-700">
-                    Login with Email
-                  </span>
-                </div>
-
-                <form onSubmit={handleEmailLogin} className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="teacher-email"
-                      className="text-xs text-gray-600"
-                    >
-                      Email Address
-                    </Label>
-                    <Input
-                      id="teacher-email"
-                      data-ocid="teacher.email.input"
-                      type="email"
-                      value={emailForm.email}
-                      onChange={(e) =>
-                        setEmailForm((p) => ({ ...p, email: e.target.value }))
-                      }
-                      placeholder="you@openframe.edu"
-                      className="rounded-xl h-11"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="teacher-password"
-                      className="text-xs text-gray-600"
-                    >
-                      Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="teacher-password"
-                        data-ocid="teacher.password.input"
-                        type={showPassword ? "text" : "password"}
-                        value={emailForm.password}
-                        onChange={(e) =>
-                          setEmailForm((p) => ({
-                            ...p,
-                            password: e.target.value,
-                          }))
-                        }
-                        placeholder="Enter your password"
-                        className="rounded-xl h-11 pr-10"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((p) => !p)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                        aria-label={
-                          showPassword ? "Hide password" : "Show password"
-                        }
-                      >
-                        {showPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Email login error */}
-                  {emailLoginError && (
-                    <div
-                      data-ocid="teacher.login.error_state"
-                      className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"
-                    >
-                      {emailLoginError}
-                    </div>
-                  )}
-
-                  <Button
-                    data-ocid="teacher.email.submit_button"
-                    type="submit"
-                    disabled={emailLoginLoading}
-                    className="w-full h-11 text-white border-0 rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition-opacity"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, oklch(0.45 0.18 262), oklch(0.33 0.17 265))",
-                    }}
-                  >
-                    {emailLoginLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        Signing In...
-                      </>
-                    ) : (
-                      "Login with Email"
-                    )}
-                  </Button>
-                </form>
+              <div className="text-center">
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  Sign in securely with your Internet Identity to access your
+                  teacher dashboard.
+                </p>
               </div>
 
-              {/* OR Divider */}
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-                  or
-                </span>
-                <div className="flex-1 h-px bg-gray-200" />
-              </div>
-
-              {/* Internet Identity Section */}
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <ShieldCheck className="w-4 h-4 text-purple-600" />
-                  <span className="text-sm font-semibold text-gray-700">
-                    Login with Internet Identity
-                  </span>
-                </div>
-
-                {/* II error */}
-                {isLoginError && (
-                  <div
-                    data-ocid="teacher.login.error_state"
-                    className="mb-3 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"
-                  >
-                    Internet Identity login failed. Please try again.
-                  </div>
-                )}
-
-                <Button
-                  data-ocid="teacher.ii.primary_button"
-                  variant="outline"
-                  onClick={login}
-                  disabled={isLoggingIn}
-                  className="w-full h-11 rounded-xl font-semibold text-sm border-2 transition-all hover:bg-purple-50 hover:border-purple-400"
-                  style={{
-                    borderColor: "oklch(0.65 0.18 295)",
-                    color: "oklch(0.45 0.18 295)",
-                  }}
+              {/* II error */}
+              {isLoginError && (
+                <div
+                  data-ocid="teacher.login.error_state"
+                  className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center"
                 >
-                  {isLoggingIn ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="w-4 h-4 mr-2" />
-                      Login with Internet Identity
-                    </>
-                  )}
-                </Button>
-              </div>
+                  Login failed. Please try again.
+                </div>
+              )}
+
+              <Button
+                data-ocid="teacher.ii.primary_button"
+                onClick={login}
+                disabled={isLoggingIn}
+                className="w-full h-12 text-white border-0 rounded-xl font-semibold text-base shadow-md hover:opacity-90 transition-opacity"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.45 0.18 262), oklch(0.33 0.17 265))",
+                }}
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-5 h-5 mr-2" />
+                    Login with Internet Identity
+                  </>
+                )}
+              </Button>
 
               {/* Trust note */}
               <p className="text-center text-xs text-gray-400 leading-relaxed">
-                🔒 Your credentials are secured. Teachers are added by the
-                Admin.
+                🔒 Secure, passwordless login powered by Internet Identity.
+                <br />
+                Any teacher can log in freely.
               </p>
 
               {/* Back to home */}
