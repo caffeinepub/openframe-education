@@ -87,7 +87,18 @@ function LoginScreen({
     if (isLoginSuccess && identity) {
       const allTeachers = getTeachers();
       setTeachers(allTeachers);
-      if (allTeachers.length === 1) {
+      if (allTeachers.length === 0) {
+        // No profiles – log in freely using Internet Identity principal
+        const principalStr = identity.getPrincipal().toString();
+        const shortId = principalStr.slice(0, 8);
+        const session: TeacherSession = {
+          teacherId: `ii-${shortId}`,
+          name: "Teacher",
+          email: "",
+        };
+        sessionStorage.setItem("teacherSession", JSON.stringify(session));
+        onLogin(session);
+      } else if (allTeachers.length === 1) {
         // Auto-select if only one teacher
         const t = allTeachers[0];
         const session: TeacherSession = {

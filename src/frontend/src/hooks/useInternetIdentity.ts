@@ -14,7 +14,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { loadConfig } from "../config";
@@ -150,11 +149,9 @@ export function InternetIdentityProvider({
    */
   createOptions?: AuthClientCreateOptions;
 }>) {
-  // Use a ref to store the auth client so callbacks always have the latest value
-  // without triggering re-renders or effect re-runs.
-  const authClientRef = useRef<AuthClient | undefined>(undefined);
-  const [_authClientReady, setAuthClientReady] = useState(false);
-
+  const [authClient, setAuthClient] = useState<AuthClient | undefined>(
+    undefined,
+  );
   const [identity, setIdentity] = useState<Identity | undefined>(undefined);
   const [loginStatus, setStatus] = useState<Status>("initializing");
   const [loginError, setError] = useState<Error | undefined>(undefined);
@@ -165,19 +162,14 @@ export function InternetIdentityProvider({
   }, []);
 
   const handleLoginSuccess = useCallback(() => {
-    const client = authClientRef.current;
-    if (!client) {
-      setErrorMessage("Identity not found after successful login");
-      return;
-    }
-    const latestIdentity = client.getIdentity();
+    const latestIdentity = authClient?.getIdentity();
     if (!latestIdentity) {
       setErrorMessage("Identity not found after successful login");
       return;
     }
     setIdentity(latestIdentity);
     setStatus("success");
-  }, [setErrorMessage]);
+  }, [authClient, setErrorMessage]);
 
   const handleLoginError = useCallback(
     (maybeError?: string) => {
@@ -187,7 +179,6 @@ export function InternetIdentityProvider({
   );
 
   const login = useCallback(() => {
-    const authClient = authClientRef.current;
     if (!authClient) {
       setErrorMessage(
         "AuthClient is not initialized yet, make sure to call `login` on user interaction e.g. click.",
@@ -196,20 +187,14 @@ export function InternetIdentityProvider({
     }
 
     const currentIdentity = authClient.getIdentity();
-    // If user is already authenticated with a valid delegation, set the identity directly
-    // instead of showing an error.
     if (
       !currentIdentity.getPrincipal().isAnonymous() &&
       currentIdentity instanceof DelegationIdentity &&
       isDelegationValid(currentIdentity.getDelegation())
     ) {
-      setIdentity(currentIdentity);
-      setStatus("success");
+      setErrorMessage("User is already authenticated");
       return;
     }
-
-    // Reset any previous error before attempting login
-    setError(undefined);
 
     const options: AuthClientLoginOptions = {
       identityProvider: DEFAULT_IDENTITY_PROVIDER,
@@ -220,10 +205,9 @@ export function InternetIdentityProvider({
 
     setStatus("logging-in");
     void authClient.login(options);
-  }, [handleLoginError, handleLoginSuccess, setErrorMessage]);
+  }, [authClient, handleLoginError, handleLoginSuccess, setErrorMessage]);
 
   const clear = useCallback(() => {
-    const authClient = authClientRef.current;
     if (!authClient) {
       setErrorMessage("Auth client not initialized");
       return;
@@ -233,8 +217,7 @@ export function InternetIdentityProvider({
       .logout()
       .then(() => {
         setIdentity(undefined);
-        authClientRef.current = undefined;
-        setAuthClientReady(false);
+        setAuthClient(undefined);
         setStatus("idle");
         setError(undefined);
       })
@@ -246,19 +229,18 @@ export function InternetIdentityProvider({
             : new Error("Logout failed"),
         );
       });
-  }, [setErrorMessage]);
+  }, [authClient, setErrorMessage]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         setStatus("initializing");
-        let existingClient = authClientRef.current;
+        let existingClient = authClient;
         if (!existingClient) {
           existingClient = await createAuthClient(createOptions);
           if (cancelled) return;
-          authClientRef.current = existingClient;
-          setAuthClientReady(true);
+          setAuthClient(existingClient);
         }
         const isAuthenticated = await existingClient.isAuthenticated();
         if (cancelled) return;
@@ -267,14 +249,12 @@ export function InternetIdentityProvider({
           setIdentity(loadedIdentity);
         }
       } catch (unknownError) {
-        if (!cancelled) {
-          setStatus("loginError");
-          setError(
-            unknownError instanceof Error
-              ? unknownError
-              : new Error("Initialization failed"),
-          );
-        }
+        setStatus("loginError");
+        setError(
+          unknownError instanceof Error
+            ? unknownError
+            : new Error("Initialization failed"),
+        );
       } finally {
         if (!cancelled) setStatus("idle");
       }
@@ -282,7 +262,7 @@ export function InternetIdentityProvider({
     return () => {
       cancelled = true;
     };
-  }, [createOptions]);
+  }, [createOptions, authClient]);
 
   const value = useMemo<ProviderValue>(
     () => ({
