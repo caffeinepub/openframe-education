@@ -1,57 +1,46 @@
-# OpenFrame Education – Teacher Management System
+# OpenFrame Education - Teacher Dashboard Redesign
 
 ## Current State
-
-The platform has:
-- Admin Dashboard at `/dashboard/admin` with sections: overview, enrollment-leads, magazine-orders, leaderboard, fe-management, withdrawals, commission-reports, demo-bookings, students, attendance, payments, referrals, class-schedule, study-materials, blog-manager, settings
-- Teacher Dashboard at `/dashboard/teacher` (basic, not feature-complete)
-- DashboardLayout component with sidebar nav
-- localStorage-backed stores: blogStore, referralStore
-- App routes defined in App.tsx
+- Teacher Management page exists at `/teacher-dashboard` (TeacherManagementPage.tsx)
+- Internet Identity login only, teachers can log in freely without pre-created profiles
+- Sidebar with: Dashboard, My Classes, Students, Attendance, Homework, Class Tracking, Reports, Notifications, Profile
+- Attendance supports photo/document upload
+- Admin Panel has 8 teacher management sections
+- UI uses generic blue color scheme, not a dark professional SaaS style
 
 ## Requested Changes (Diff)
 
 ### Add
-- `src/frontend/src/utils/teacherStore.ts`: localStorage-backed store for all teacher management data (teachers, students, classes, attendance, class tracking, homework, notifications)
-- New route `/teacher-dashboard` pointing to a full Teacher Management Dashboard page
-- Teacher login page embedded in the `/teacher-dashboard` route (email + password, no backend auth)
-- New Admin Panel sections: Teachers, Students (school), Classes, Attendance Reports, Class Tracking, Homework, Notifications, Teacher Analytics
-- Teacher Dashboard page with sidebar: Dashboard, My Classes, Students, Attendance, Homework, Reports, Profile, Logout
+- Dark blue professional SaaS-style UI theme (navy/slate sidebar, dark header)
+- Dashboard overview stats: Total Classes Assigned, Total Students, Today's Classes, Pending Homework, Attendance % today
+- My Classes: Nursery-12th with Section A/B/C, subject, student count, clickable to class details
+- Students section: class-wise list, search, filter by class, view student profile modal
+- Attendance: date picker, daily + monthly % display, edit attendance option, photo/document upload
+- Homework: Add/Edit/Delete with title, description, subject, due date, file attachment (PDF/Image)
+- Class Tracking: log completed classes, add session notes, mark syllabus complete, pending syllabus view
+- Reports: attendance report + class performance report, CSV download/export
+- Notifications: teacher can send messages to students/parents (stored); receive Admin messages
+- Profile: view/edit name, subjects, assigned classes
+- Admin Panel: new section to view teacher-sent notifications and class tracking logs
 
 ### Modify
-- `AdminDashboard.tsx`: Add 8 new nav items and renderContent cases for teacher management sections
-- `App.tsx`: Add `/teacher-dashboard` route
+- Full visual redesign of TeacherManagementPage.tsx to dark blue SaaS dashboard style
+- All sidebar sections upgraded with richer UI and more functionality
+- Attendance system enhanced with monthly stats and edit capability
+- Reports section upgraded with CSV export
 
 ### Remove
-- Nothing removed
+- Generic/light color theme replaced with dark professional theme
 
 ## Implementation Plan
-
-1. Create `teacherStore.ts` with types and localStorage CRUD for:
-   - Teacher accounts (id, name, email, password, phone, subject, qualification, assignedClasses, profilePhoto)
-   - School students (id, name, classId, section, rollNumber, parentName, parentPhone, dob)
-   - Classes (id, className, section, teacherId) – pre-seeded with Nursery, LKG, UKG, 1–12 × sections A,B,C
-   - Attendance records (studentId, classId, teacherId, date, status, documentUrl)
-   - Class tracking records (teacherId, classId, subject, date, startTime, endTime, topicCovered, homeworkGiven)
-   - Homework (teacherId, classId, title, description, fileUrl, dueDate)
-   - Notifications (title, message, sentBy, sentTo, date, read)
-
-2. Create `TeacherManagementPage.tsx` at `/teacher-dashboard`:
-   - Shows a login form (email + password) if not logged in as a teacher
-   - On login: looks up teacher by email+password from teacherStore, stores session in sessionStorage
-   - After login: shows full Teacher Dashboard with sidebar
-   - Sidebar sections: Dashboard (summary stats), My Classes, Students, Attendance (mark + upload doc), Homework (upload file), Class Tracking, Reports, Profile, Notifications, Logout
-
-3. Update `AdminDashboard.tsx`:
-   - Add nav items: teachers, school-students, school-classes, teacher-attendance, class-tracking, teacher-homework, teacher-notifications, teacher-analytics
-   - Implement each section's UI:
-     - Teachers: table + add/edit/delete teacher form (includes setting email/password)
-     - School Students: table + add/edit/delete
-     - School Classes: show all classes with section and assigned teacher
-     - Attendance Reports: filterable table by class/date
-     - Class Tracking: view all entries submitted by teachers
-     - Homework: view all homework entries
-     - Notifications: compose and send notification to specific teacher or all teachers
-     - Teacher Analytics: cards showing total teachers, students, today's attendance %, classes today
-
-4. Update `App.tsx` to add the `/teacher-dashboard` route
+1. Redesign TeacherManagementPage.tsx with dark blue SaaS sidebar + layout
+2. Build Dashboard Overview with stat cards
+3. Build My Classes section with class cards and detail view
+4. Build Students section with search/filter/profile view
+5. Build enhanced Attendance system (date picker, monthly %, edit, photo upload)
+6. Build Homework module (CRUD, file attach)
+7. Build Class Tracking (completed/pending, notes)
+8. Build Reports with CSV export
+9. Build Notifications (send + receive)
+10. Build Profile (view/edit)
+11. Update Admin Panel to show teacher notifications and class tracking logs

@@ -1237,6 +1237,185 @@ function AdminTeacherNotifications() {
   );
 }
 
+// Teacher Sent Notifications (from localStorage)
+function AdminTeacherSentNotifications() {
+  interface SentNotif {
+    id: string;
+    teacherName: string;
+    principal: string;
+    to: string;
+    title: string;
+    message: string;
+    createdAt: string;
+  }
+  const [items, setItems] = useState<SentNotif[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("teacherSentNotifications");
+      setItems(raw ? JSON.parse(raw) : []);
+    } catch {
+      setItems([]);
+    }
+  }, []);
+  return (
+    <div>
+      <h3
+        className="font-semibold mb-3 text-sm"
+        style={{ color: "oklch(0.2 0.04 265)" }}
+      >
+        Teacher-Sent Notifications
+      </h3>
+      {items.length === 0 ? (
+        <div
+          className="bg-white rounded-2xl border border-border p-8 text-center"
+          data-ocid="admin.teacher_sent_notifs.empty_state"
+        >
+          <p className="text-sm text-muted-foreground">
+            No notifications sent by teachers yet.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {[...items].reverse().map((n, idx) => (
+            <div
+              key={n.id}
+              className="bg-white rounded-xl border border-border p-4"
+              data-ocid={`admin.teacher_sent_notifs.item.${idx + 1}`}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-sm">{n.title}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {n.message}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p
+                    className="text-xs font-medium"
+                    style={{ color: "oklch(0.45 0.18 262)" }}
+                  >
+                    To: {n.to}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    By: {n.teacherName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{n.createdAt}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Teacher Class Tracking Logs (from localStorage)
+function AdminTeacherClassTrackingLogs() {
+  interface TrackEntry {
+    id: string;
+    teacherName: string;
+    principal: string;
+    className: string;
+    section: string;
+    subject: string;
+    topic: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    notes: string;
+    homeworkGiven: boolean;
+    completed: boolean;
+  }
+  const [items, setItems] = useState<TrackEntry[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("teacherClassTracking");
+      setItems(raw ? JSON.parse(raw) : []);
+    } catch {
+      setItems([]);
+    }
+  }, []);
+  return (
+    <div>
+      <h3
+        className="font-semibold mb-3 text-sm"
+        style={{ color: "oklch(0.2 0.04 265)" }}
+      >
+        Class Tracking Logs (All Teachers)
+      </h3>
+      {items.length === 0 ? (
+        <div
+          className="bg-white rounded-2xl border border-border p-8 text-center"
+          data-ocid="admin.class_tracking_logs.empty_state"
+        >
+          <p className="text-sm text-muted-foreground">
+            No class tracking entries yet.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                {[
+                  "Teacher",
+                  "Class",
+                  "Subject",
+                  "Topic",
+                  "Date",
+                  "Time",
+                  "Status",
+                  "HW",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[...items].reverse().map((t, idx) => (
+                <tr
+                  key={t.id}
+                  className="border-t border-border hover:bg-slate-50"
+                  data-ocid={`admin.class_tracking_logs.row.item.${idx + 1}`}
+                >
+                  <td className="px-4 py-3 font-medium">{t.teacherName}</td>
+                  <td className="px-4 py-3">
+                    {t.className}-{t.section}
+                  </td>
+                  <td className="px-4 py-3">{t.subject}</td>
+                  <td className="px-4 py-3 max-w-[160px] truncate text-muted-foreground">
+                    {t.topic}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{t.date}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {t.startTime}–{t.endTime}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${t.completed ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}`}
+                    >
+                      {t.completed ? "Done" : "Pending"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {t.homeworkGiven ? "Yes" : "No"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("overview");
   const { data: demoBookings } = useGetAllDemoBookings();
@@ -3769,7 +3948,13 @@ export function AdminDashboard() {
       }
 
       case "teacher-notifications":
-        return <AdminTeacherNotifications />;
+        return (
+          <div className="space-y-8">
+            <AdminTeacherNotifications />
+            <AdminTeacherSentNotifications />
+            <AdminTeacherClassTrackingLogs />
+          </div>
+        );
 
       default:
         return null;

@@ -144,3 +144,15 @@
     color: oklch(0.95 0.01 255);
   }
 }
+
+@layer utilities {
+  .form-input {
+    @apply w-full px-3 py-2 text-sm rounded-xl border outline-none transition-colors bg-white;
+    border-color: oklch(0.9 0.02 255);
+    color: oklch(0.25 0.05 265);
+  }
+  .form-input:focus {
+    border-color: oklch(0.45 0.18 262);
+    box-shadow: 0 0 0 3px oklch(0.45 0.18 262 / 0.12);
+  }
+}
