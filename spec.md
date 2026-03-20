@@ -1,46 +1,28 @@
-# OpenFrame Education - Teacher Dashboard Redesign
+# OpenFrame Education
 
 ## Current State
-- Teacher Management page exists at `/teacher-dashboard` (TeacherManagementPage.tsx)
-- Internet Identity login only, teachers can log in freely without pre-created profiles
-- Sidebar with: Dashboard, My Classes, Students, Attendance, Homework, Class Tracking, Reports, Notifications, Profile
-- Attendance supports photo/document upload
-- Admin Panel has 8 teacher management sections
-- UI uses generic blue color scheme, not a dark professional SaaS style
+The app is a multi-role EdTech platform with Admin, Teacher, Field Executive, Student, and Parent dashboards. Key existing features: Internet Identity login for teachers, GPS check-in for FEs, class level dropdowns, referral/commission system, blog, Pragati magazine.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Dark blue professional SaaS-style UI theme (navy/slate sidebar, dark header)
-- Dashboard overview stats: Total Classes Assigned, Total Students, Today's Classes, Pending Homework, Attendance % today
-- My Classes: Nursery-12th with Section A/B/C, subject, student count, clickable to class details
-- Students section: class-wise list, search, filter by class, view student profile modal
-- Attendance: date picker, daily + monthly % display, edit attendance option, photo/document upload
-- Homework: Add/Edit/Delete with title, description, subject, due date, file attachment (PDF/Image)
-- Class Tracking: log completed classes, add session notes, mark syllabus complete, pending syllabus view
-- Reports: attendance report + class performance report, CSV download/export
-- Notifications: teacher can send messages to students/parents (stored); receive Admin messages
-- Profile: view/edit name, subjects, assigned classes
-- Admin Panel: new section to view teacher-sent notifications and class tracking logs
+- FE Dashboard: Daily Task Tracking section (nav + render) with task list CRUD
+- FE Dashboard: Attendance section for FEs to mark their own daily attendance
+- GPS check-ins saved to localStorage key `FE_GPS_CHECKINS` (array of check-in objects)
+- Admin FE Locations section reads from localStorage `FE_GPS_CHECKINS` instead of SAMPLE_FE_VISIT_LOGS
 
 ### Modify
-- Full visual redesign of TeacherManagementPage.tsx to dark blue SaaS dashboard style
-- All sidebar sections upgraded with richer UI and more functionality
-- Attendance system enhanced with monthly stats and edit capability
-- Reports section upgraded with CSV export
+- TeacherDashboard login: add pending-retry logic so that when `isLoginError` and user clicks login, call `clear()` first then auto-retry when `isLoginIdle` resumes, fixing the "Internet identity login failed" loop
+- Class levels everywhere: replace grouped entries ("Nursery – UKG", "1st to 5th", etc.) with 13 individual levels: Nursery, UKG, LKG, 1st Standard, 2nd Standard, 3rd Standard, 4th Standard, 5th Standard, 6th Standard, 7th Standard, 8th Standard, 9th Standard, 10th Standard, 11th Standard, 12th Standard
+- FE Dashboard navItems: replace grouped class nav entries with proper label structure
 
 ### Remove
-- Generic/light color theme replaced with dark professional theme
+- Admin FE Locations: remove SAMPLE_FE_VISIT_LOGS dependency for FE location display
 
 ## Implementation Plan
-1. Redesign TeacherManagementPage.tsx with dark blue SaaS sidebar + layout
-2. Build Dashboard Overview with stat cards
-3. Build My Classes section with class cards and detail view
-4. Build Students section with search/filter/profile view
-5. Build enhanced Attendance system (date picker, monthly %, edit, photo upload)
-6. Build Homework module (CRUD, file attach)
-7. Build Class Tracking (completed/pending, notes)
-8. Build Reports with CSV export
-9. Build Notifications (send + receive)
-10. Build Profile (view/edit)
-11. Update Admin Panel to show teacher notifications and class tracking logs
+1. Fix TeacherDashboard login: add `useRef` pendingRetry, `useEffect` watching `isLoginIdle`, wrap login button onClick
+2. Fix GPS sync: in FieldExecDashboard `handleGpsCheckIn`, after `setGpsCheckIns`, also write to localStorage. On mount, load from localStorage into state.
+3. Fix Admin GPS panel: read from `FE_GPS_CHECKINS` localStorage and display live data (with fallback empty state)
+4. Fix class levels: update `classLevels` array in TeacherDashboard, FieldExecDashboard, and any other dropdowns to 13 individual levels
+5. Add Daily Task Tracking section to FE dashboard: simple add/complete/delete task list stored in localStorage
+6. Add Attendance section to FE dashboard: FE marks Present/Absent/Half-day for themselves each day, stored in localStorage

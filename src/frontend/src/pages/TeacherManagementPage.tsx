@@ -18,6 +18,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  PenLine,
   Pencil,
   Plus,
   Save,
@@ -32,6 +33,11 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  SAMPLE_EXAMS,
+  SAMPLE_EXAM_RESULTS,
+  SAMPLE_TIMETABLE,
+} from "../data/sampleData";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -393,6 +399,8 @@ const NAV_ITEMS = [
   { id: "reports", label: "Reports", icon: Download },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "profile", label: "Profile", icon: User },
+  { id: "exams", label: "Exams", icon: PenLine },
+  { id: "timetable", label: "Timetable", icon: Calendar },
 ];
 
 // ─── Main Teacher Dashboard ───────────────────────────────────────────────────
@@ -662,9 +670,419 @@ function SectionRouter({
       return <SectionNotifications principal={principal} />;
     case "profile":
       return <SectionProfile principal={principal} />;
+    case "exams":
+      return <SectionTeacherExams principal={principal} />;
+    case "timetable":
+      return <SectionTeacherTimetable />;
     default:
       return null;
   }
+}
+
+// ─── Section: Exams (Teacher) ─────────────────────────────────────────────────
+
+function SectionTeacherExams({ principal }: { principal: string }) {
+  const myExams = SAMPLE_EXAMS.filter(
+    (e) => e.createdBy.includes("Lakshmi") || true,
+  ).slice(0, 2);
+  const [selectedExam, setSelectedExam] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({
+    title: "",
+    className: "",
+    subject: "",
+    date: "",
+    totalMarks: "50",
+  });
+  const [localExams, setLocalExams] = useState(myExams);
+
+  const results = SAMPLE_EXAM_RESULTS.filter((r) => r.examId === selectedExam);
+  const weakStudents = results.filter(
+    (r) =>
+      r.marksObtained <
+      (SAMPLE_EXAMS.find((e) => e.id === selectedExam)?.totalMarks ?? 50) * 0.4,
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2
+            className="text-xl font-bold"
+            style={{ color: "oklch(0.18 0.04 265)" }}
+          >
+            Exams
+          </h2>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
+            Create and manage student exams
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+          style={{ background: "oklch(0.35 0.08 265)" }}
+          data-ocid="exams.open_modal_button"
+        >
+          <PenLine className="w-4 h-4" /> Create Exam
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div
+          className="bg-white rounded-2xl p-5 border shadow-sm"
+          style={{ borderColor: "oklch(0.93 0.01 255)" }}
+        >
+          <p
+            className="text-2xl font-bold"
+            style={{ color: "oklch(0.18 0.04 265)" }}
+          >
+            {localExams.length}
+          </p>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: "oklch(0.55 0.03 255)" }}
+          >
+            My Exams
+          </p>
+        </div>
+        <div
+          className="bg-white rounded-2xl p-5 border shadow-sm"
+          style={{ borderColor: "oklch(0.93 0.01 255)" }}
+        >
+          <p
+            className="text-2xl font-bold"
+            style={{ color: "oklch(0.18 0.04 265)" }}
+          >
+            {SAMPLE_EXAM_RESULTS.length}
+          </p>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: "oklch(0.55 0.03 255)" }}
+          >
+            Students Graded
+          </p>
+        </div>
+      </div>
+
+      {showCreate && (
+        <div
+          className="bg-white rounded-2xl border p-5 shadow-sm space-y-3"
+          style={{ borderColor: "oklch(0.93 0.01 255)" }}
+        >
+          <h4
+            className="font-semibold"
+            style={{ color: "oklch(0.18 0.04 265)" }}
+          >
+            Create Exam
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="exam-title"
+                className="text-xs font-medium block mb-1"
+              >
+                Title
+              </label>
+              <Input
+                id="exam-title"
+                value={form.title}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title: e.target.value }))
+                }
+                placeholder="Exam title"
+                data-ocid="exams.input"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="exam-class"
+                className="text-xs font-medium block mb-1"
+              >
+                Class
+              </label>
+              <Input
+                id="exam-class"
+                value={form.className}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, className: e.target.value }))
+                }
+                placeholder="8th"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="exam-subject"
+                className="text-xs font-medium block mb-1"
+              >
+                Subject
+              </label>
+              <Input
+                id="exam-subject"
+                value={form.subject}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, subject: e.target.value }))
+                }
+                placeholder="Mathematics"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="exam-date"
+                className="text-xs font-medium block mb-1"
+              >
+                Date
+              </label>
+              <Input
+                id="exam-date"
+                type="date"
+                value={form.date}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, date: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="exam-marks"
+                className="text-xs font-medium block mb-1"
+              >
+                Total Marks
+              </label>
+              <Input
+                id="exam-marks"
+                value={form.totalMarks}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, totalMarks: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
+              style={{ background: "oklch(0.35 0.08 265)" }}
+              onClick={() => {
+                setLocalExams((l) => [
+                  ...l,
+                  {
+                    ...form,
+                    id: `ex${Date.now()}`,
+                    section: "A",
+                    totalMarks: Number(form.totalMarks),
+                    createdBy: principal,
+                  },
+                ]);
+                setShowCreate(false);
+                toast.success("Exam created");
+              }}
+              data-ocid="exams.submit_button"
+            >
+              Save Exam
+            </button>
+            <button
+              type="button"
+              className="px-4 py-2 rounded-xl text-sm font-semibold border"
+              onClick={() => setShowCreate(false)}
+              data-ocid="exams.cancel_button"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {weakStudents.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
+          ⚠️ {weakStudents.length} student(s) scoring below 40%:{" "}
+          {weakStudents.map((w) => w.studentName).join(", ")}
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {localExams.map((ex) => (
+          <div
+            key={ex.id}
+            className="bg-white rounded-2xl border p-5 shadow-sm"
+            style={{ borderColor: "oklch(0.93 0.01 255)" }}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h3
+                  className="font-semibold"
+                  style={{ color: "oklch(0.18 0.04 265)" }}
+                >
+                  {ex.title}
+                </h3>
+                <p
+                  className="text-xs mt-0.5"
+                  style={{ color: "oklch(0.55 0.03 255)" }}
+                >
+                  {ex.className} · {ex.subject} · {ex.date} · {ex.totalMarks}{" "}
+                  marks
+                </p>
+              </div>
+              <button
+                type="button"
+                className="text-xs px-3 py-1.5 rounded-lg border font-medium"
+                onClick={() =>
+                  setSelectedExam(selectedExam === ex.id ? null : ex.id)
+                }
+                data-ocid="exams.secondary_button"
+              >
+                {selectedExam === ex.id ? "Hide Results" : "View Results"}
+              </button>
+            </div>
+            {selectedExam === ex.id && (
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground">
+                        Roll
+                      </th>
+                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground">
+                        Student
+                      </th>
+                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground">
+                        Marks
+                      </th>
+                      <th className="text-left py-2 pr-4 text-xs font-semibold text-muted-foreground">
+                        Grade
+                      </th>
+                      <th className="text-left py-2 text-xs font-semibold text-muted-foreground">
+                        Remarks
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((r) => (
+                      <tr key={r.id} className="border-b last:border-0">
+                        <td className="py-2 pr-4">{r.rollNo}</td>
+                        <td className="py-2 pr-4">
+                          {r.studentName}{" "}
+                          {r.marksObtained < ex.totalMarks * 0.4 && (
+                            <span className="ml-1 text-xs bg-red-100 text-red-700 px-1 py-0.5 rounded">
+                              Weak
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-4">
+                          {r.marksObtained}/{ex.totalMarks}
+                        </td>
+                        <td className="py-2 pr-4 font-semibold">{r.grade}</td>
+                        <td className="py-2 text-muted-foreground">
+                          {r.remarks}
+                        </td>
+                      </tr>
+                    ))}
+                    {results.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="py-4 text-center text-muted-foreground"
+                        >
+                          No results yet
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Section: Timetable (Teacher – read-only) ─────────────────────────────────
+
+function SectionTeacherTimetable() {
+  const DAYS_TT = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2
+          className="text-xl font-bold"
+          style={{ color: "oklch(0.18 0.04 265)" }}
+        >
+          Your Weekly Schedule
+        </h2>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
+          Mon–Sat class schedule assigned by admin
+        </p>
+      </div>
+      <div
+        className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+        style={{ borderColor: "oklch(0.93 0.01 255)" }}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr style={{ background: "oklch(0.18 0.04 265)" }}>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-white">
+                  Day
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-white">
+                  Subject
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-white">
+                  Class
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-white">
+                  Time
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {DAYS_TT.map((day) => {
+                const slots = SAMPLE_TIMETABLE.filter((t) => t.day === day);
+                if (slots.length === 0)
+                  return (
+                    <tr key={day} className="border-b">
+                      <td className="py-3 px-4 font-medium text-xs">{day}</td>
+                      <td
+                        colSpan={3}
+                        className="py-3 px-4 text-muted-foreground text-xs"
+                      >
+                        No class scheduled
+                      </td>
+                    </tr>
+                  );
+                return slots.map((slot, idx) => (
+                  <tr
+                    key={slot.id}
+                    className="border-b hover:bg-muted/30 transition-colors"
+                  >
+                    <td className="py-3 px-4 font-medium text-xs">
+                      {idx === 0 ? day : ""}
+                    </td>
+                    <td className="py-3 px-4 text-xs">{slot.subject}</td>
+                    <td className="py-3 px-4 text-xs">
+                      {slot.className} – {slot.section}
+                    </td>
+                    <td className="py-3 px-4 text-xs">
+                      {slot.startTime}–{slot.endTime}
+                    </td>
+                  </tr>
+                ));
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Stat Card component ──────────────────────────────────────────────────────

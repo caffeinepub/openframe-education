@@ -11,106 +11,390 @@ import {
 } from "@/components/ui/table";
 import {
   Award,
-  BarChart3,
+  Bell,
   BookOpen,
+  CheckCircle,
   ClipboardCheck,
-  CreditCard,
   Download,
+  GraduationCap,
+  Loader2,
   Video,
+  XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
-import {
-  SAMPLE_ATTENDANCE,
-  SAMPLE_CERTIFICATES,
-  SAMPLE_HOMEWORK,
-  SAMPLE_PAYMENTS,
-  SAMPLE_SCHEDULED_CLASSES,
-  SAMPLE_STUDY_MATERIALS,
-  SAMPLE_TEST_RESULTS,
-} from "../../data/sampleData";
+import { useInternetIdentity } from "../../hooks/useInternetIdentity";
 
 const navItems = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: <GraduationCap className="w-4 h-4" />,
+  },
   { id: "classes", label: "My Classes", icon: <Video className="w-4 h-4" /> },
+  { id: "homework", label: "Homework", icon: <BookOpen className="w-4 h-4" /> },
   {
     id: "attendance",
     label: "Attendance",
     icon: <ClipboardCheck className="w-4 h-4" />,
   },
-  { id: "homework", label: "Homework", icon: <BookOpen className="w-4 h-4" /> },
-  {
-    id: "results",
-    label: "Test Results",
-    icon: <BarChart3 className="w-4 h-4" />,
-  },
+  { id: "results", label: "Results", icon: <Award className="w-4 h-4" /> },
   {
     id: "materials",
     label: "Study Materials",
     icon: <Download className="w-4 h-4" />,
   },
   {
-    id: "certificates",
-    label: "My Certificates",
-    icon: <Award className="w-4 h-4" />,
-  },
-  {
-    id: "payments",
-    label: "Payments",
-    icon: <CreditCard className="w-4 h-4" />,
+    id: "notifications",
+    label: "Notifications",
+    icon: <Bell className="w-4 h-4" />,
   },
 ];
 
-const STUDENT_ID = BigInt(1);
+const SAMPLE_CLASSES = [
+  {
+    id: "c1",
+    subject: "Mathematics",
+    class: "8th Standard – Section A",
+    teacher: "Mrs. Lakshmi",
+    time: "09:00–10:00 AM",
+    status: "Online",
+    meet: "https://meet.google.com",
+  },
+  {
+    id: "c2",
+    subject: "Science",
+    class: "8th Standard – Section A",
+    teacher: "Mr. Rajan",
+    time: "10:00–11:00 AM",
+    status: "Upcoming",
+    meet: "https://meet.google.com",
+  },
+  {
+    id: "c3",
+    subject: "English",
+    class: "8th Standard – Section A",
+    teacher: "Mrs. Priya",
+    time: "11:00–12:00 PM",
+    status: "Upcoming",
+    meet: "https://meet.google.com",
+  },
+];
+
+const SAMPLE_HW = [
+  {
+    id: "h1",
+    title: "Exercise 4.2 – Algebra",
+    subject: "Mathematics",
+    dueDate: "2026-03-22",
+    status: "Pending",
+  },
+  {
+    id: "h2",
+    title: "Chapter 7 Questions",
+    subject: "Science",
+    dueDate: "2026-03-24",
+    status: "Submitted",
+  },
+  {
+    id: "h3",
+    title: "Write a paragraph on Nature",
+    subject: "English",
+    dueDate: "2026-03-23",
+    status: "Pending",
+  },
+];
+
+const SAMPLE_NOTIFICATIONS = [
+  {
+    id: "n1",
+    text: "New homework assigned: Mathematics Exercise 4.2 – Due March 22",
+    time: "Today, 10:05 AM",
+    from: "Teacher",
+  },
+  {
+    id: "n2",
+    text: "Attendance marked for March 20 – Present",
+    time: "Today, 09:30 AM",
+    from: "System",
+  },
+  {
+    id: "n3",
+    text: "Exam result uploaded: Mathematics Unit Test – 45/50",
+    time: "Yesterday, 04:00 PM",
+    from: "Teacher",
+  },
+];
+
+const ATTENDANCE_WEEKS = [
+  {
+    week: "March 2 – 7",
+    mon: "P",
+    tue: "P",
+    wed: "P",
+    thu: "A",
+    fri: "P",
+    sat: "P",
+  },
+  {
+    week: "March 9 – 14",
+    mon: "P",
+    tue: "P",
+    wed: "A",
+    thu: "P",
+    fri: "P",
+    sat: "P",
+  },
+  {
+    week: "March 16 – 21",
+    mon: "P",
+    tue: "P",
+    wed: "P",
+    thu: "P",
+    fri: "A",
+    sat: "P",
+  },
+  {
+    week: "Feb 23 – 28",
+    mon: "P",
+    tue: "A",
+    wed: "P",
+    thu: "P",
+    fri: "P",
+    sat: "P",
+  },
+  {
+    week: "Feb 16 – 21",
+    mon: "P",
+    tue: "P",
+    wed: "P",
+    thu: "P",
+    fri: "P",
+    sat: "A",
+  },
+];
+
+const SAMPLE_RESULTS = [
+  {
+    id: "r1",
+    title: "Mathematics Unit Test 1",
+    marks: 45,
+    total: 50,
+    grade: "A+",
+  },
+  { id: "r2", title: "Science Mid-Term", marks: 82, total: 100, grade: "A" },
+];
+
+const SAMPLE_MATERIALS = [
+  {
+    id: "m1",
+    title: "Mathematics Chapter 4 Notes",
+    type: "PDF",
+    subject: "Mathematics",
+  },
+  { id: "m2", title: "Science Diagrams", type: "Image", subject: "Science" },
+  { id: "m3", title: "English Grammar Rules", type: "PDF", subject: "English" },
+];
+
+function LoginScreen({
+  onLogin,
+  isLoggingIn,
+}: { onLogin: () => void; isLoggingIn: boolean }) {
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background:
+          "linear-gradient(135deg, oklch(0.22 0.07 280) 0%, oklch(0.32 0.1 265) 50%, oklch(0.28 0.12 295) 100%)",
+      }}
+    >
+      <div
+        className="w-full max-w-md rounded-3xl p-8 text-center shadow-2xl"
+        style={{
+          background: "oklch(0.18 0.05 275 / 0.85)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid oklch(0.4 0.1 270 / 0.3)",
+        }}
+      >
+        <div
+          className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.55 0.2 280), oklch(0.65 0.18 310))",
+          }}
+        >
+          <GraduationCap className="w-10 h-10 text-white" />
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-2">Student Portal</h1>
+        <p className="text-sm mb-8" style={{ color: "oklch(0.75 0.05 270)" }}>
+          Access your classes, homework, and results
+        </p>
+        <div
+          className="space-y-4 text-left mb-6"
+          style={{ color: "oklch(0.7 0.04 270)" }}
+        >
+          {[
+            { icon: "📚", text: "View assigned classes & join live sessions" },
+            { icon: "📝", text: "Check homework and submit assignments" },
+            { icon: "📊", text: "Track your attendance and exam results" },
+          ].map((item) => (
+            <div key={item.text} className="flex items-center gap-3 text-sm">
+              <span>{item.icon}</span>
+              <span>{item.text}</span>
+            </div>
+          ))}
+        </div>
+        <Button
+          onClick={onLogin}
+          disabled={isLoggingIn}
+          className="w-full h-12 text-base font-semibold text-white border-0 rounded-xl"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.55 0.2 280), oklch(0.62 0.18 310))",
+          }}
+          data-ocid="student.login.button"
+        >
+          {isLoggingIn ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Connecting...
+            </>
+          ) : (
+            "🔐 Login with Internet Identity"
+          )}
+        </Button>
+        <p className="text-xs mt-4" style={{ color: "oklch(0.55 0.04 270)" }}>
+          Powered by Internet Computer · Secure &amp; Private
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function StudentDashboard() {
-  const [activeSection, setActiveSection] = useState("classes");
+  const { login, loginStatus, identity } = useInternetIdentity();
+  const [activeSection, setActiveSection] = useState("dashboard");
+  const [submittedHW, setSubmittedHW] = useState<string[]>(["h2"]);
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const attendancePresent = SAMPLE_ATTENDANCE.filter(
-    (a) => a.status === "Present",
-  ).length;
-  const attendancePct = Math.round(
-    (attendancePresent / SAMPLE_ATTENDANCE.length) * 100,
-  );
-  const avgScore = Math.round(
-    SAMPLE_TEST_RESULTS.reduce((a, r) => a + Number(r.score), 0) /
-      SAMPLE_TEST_RESULTS.length,
-  );
+  const isLoggingIn = loginStatus === "logging-in";
+  const isLoggedIn = loginStatus === "success" && !!identity;
+
+  const handleLogin = () => {
+    if (loginStatus === "success" && identity) return;
+    login();
+  };
+
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={handleLogin} isLoggingIn={isLoggingIn} />;
+  }
 
   const renderContent = () => {
     switch (activeSection) {
-      case "classes":
+      case "dashboard":
         return (
-          <div>
+          <div className="space-y-6">
             <SectionHeader
-              title="My Classes"
-              description="Upcoming live sessions"
+              title="My Dashboard"
+              description="Welcome back! Here's your learning summary."
             />
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatsCard
+                title="Enrolled Classes"
+                value="3"
+                icon="📚"
+                color="oklch(0.45 0.18 262)"
+              />
               <StatsCard
                 title="Today's Classes"
                 value="2"
                 icon="📺"
-                color="oklch(0.45 0.18 262)"
+                color="oklch(0.52 0.18 280)"
               />
               <StatsCard
-                title="This Week"
-                value="8"
-                icon="📅"
+                title="Attendance"
+                value="87%"
+                icon="✅"
                 color="oklch(0.55 0.16 165)"
               />
               <StatsCard
-                title="Total Classes"
-                value="45"
-                icon="🏆"
+                title="Pending Homework"
+                value="2"
+                icon="📝"
                 color="oklch(0.68 0.19 50)"
               />
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div
+                className="bg-white rounded-2xl border p-5 shadow-sm"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+              >
+                <h3 className="font-semibold text-foreground mb-3">
+                  Today's Classes
+                </h3>
+                <div className="space-y-2">
+                  {SAMPLE_CLASSES.slice(0, 2).map((cls) => (
+                    <div
+                      key={cls.id}
+                      className="flex items-center justify-between py-2 border-b last:border-0"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{cls.subject}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {cls.time}
+                        </p>
+                      </div>
+                      <Badge
+                        className={
+                          cls.status === "Online"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-blue-100 text-blue-800"
+                        }
+                      >
+                        {cls.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div
+                className="bg-white rounded-2xl border p-5 shadow-sm"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+              >
+                <h3 className="font-semibold text-foreground mb-3">
+                  Recent Notifications
+                </h3>
+                <div className="space-y-2">
+                  {SAMPLE_NOTIFICATIONS.slice(0, 2).map((n) => (
+                    <div
+                      key={n.id}
+                      className="text-sm py-2 border-b last:border-0"
+                    >
+                      <p className="text-foreground line-clamp-2">{n.text}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {n.time}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "classes":
+        return (
+          <div className="space-y-4">
+            <SectionHeader
+              title="My Classes"
+              description="Your enrolled classes and live sessions"
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {SAMPLE_SCHEDULED_CLASSES.map((cls) => (
+              {SAMPLE_CLASSES.map((cls) => (
                 <div
-                  key={cls.classId.toString()}
+                  key={cls.id}
                   className="bg-white rounded-2xl border p-5 shadow-sm"
                   style={{ borderColor: "oklch(0.93 0.02 255)" }}
                 >
@@ -121,36 +405,36 @@ export function StudentDashboard() {
                     >
                       {cls.subject[0]}
                     </div>
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{
-                        background: "oklch(0.93 0.08 165 / 0.3)",
-                        color: "oklch(0.45 0.15 165)",
-                      }}
+                    <Badge
+                      className={
+                        cls.status === "Online"
+                          ? "bg-green-100 text-green-800 border-0"
+                          : "bg-blue-100 text-blue-800 border-0"
+                      }
                     >
-                      Live
-                    </span>
+                      {cls.status}
+                    </Badge>
                   </div>
                   <h3 className="font-semibold text-foreground mb-1">
                     {cls.subject}
                   </h3>
                   <p className="text-xs text-muted-foreground mb-1">
-                    {cls.classLevel}
+                    {cls.class}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    👩‍🏫 {cls.teacher}
                   </p>
                   <p className="text-xs text-muted-foreground mb-3">
-                    {cls.scheduledDate} · {cls.scheduledTime}
+                    🕐 {cls.time}
                   </p>
-                  <a
-                    href={cls.meetingLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a href={cls.meet} target="_blank" rel="noopener noreferrer">
                     <Button
                       size="sm"
                       className="w-full text-white border-0"
                       style={{ background: "oklch(0.45 0.18 262)" }}
+                      data-ocid={`classes.join_button.${SAMPLE_CLASSES.indexOf(cls) + 1}`}
                     >
-                      Join Class
+                      Join Live Class
                     </Button>
                   </a>
                 </div>
@@ -159,35 +443,106 @@ export function StudentDashboard() {
           </div>
         );
 
+      case "homework":
+        return (
+          <div className="space-y-4">
+            <SectionHeader
+              title="Homework"
+              description="Pending and completed assignments"
+            />
+            <div className="space-y-3">
+              {SAMPLE_HW.map((hw, idx) => {
+                const submitted = submittedHW.includes(hw.id);
+                return (
+                  <div
+                    key={hw.id}
+                    className="bg-white rounded-2xl border p-5 shadow-sm"
+                    style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground mb-1">
+                          {hw.title}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          📚 {hw.subject} · 📅 Due: {hw.dueDate}
+                        </p>
+                      </div>
+                      <Badge
+                        className={
+                          submitted
+                            ? "bg-green-100 text-green-800 border-0"
+                            : "bg-yellow-100 text-yellow-800 border-0"
+                        }
+                      >
+                        {submitted ? "Submitted" : "Pending"}
+                      </Badge>
+                    </div>
+                    {!submitted && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <input
+                          type="file"
+                          className="hidden"
+                          ref={(el) => {
+                            fileRefs.current[hw.id] = el;
+                          }}
+                          onChange={() => {
+                            setSubmittedHW((prev) => [...prev, hw.id]);
+                            toast.success(`Homework submitted: ${hw.title}`);
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => fileRefs.current[hw.id]?.click()}
+                          data-ocid={`homework.submit_button.${idx + 1}`}
+                        >
+                          📎 Submit Homework
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+
       case "attendance":
         return (
-          <div>
+          <div className="space-y-4">
             <SectionHeader
-              title="My Attendance"
-              description="Your attendance record"
+              title="Attendance"
+              description="Your daily attendance record"
             />
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
               <StatsCard
                 title="Present Days"
-                value={attendancePresent}
+                value="34"
                 icon="✅"
                 color="oklch(0.55 0.16 165)"
               />
               <StatsCard
                 title="Absent Days"
-                value={SAMPLE_ATTENDANCE.length - attendancePresent}
+                value="5"
                 icon="❌"
                 color="oklch(0.577 0.245 27)"
               />
               <StatsCard
-                title="Attendance %"
-                value={`${attendancePct}%`}
-                icon="📊"
+                title="Total Days"
+                value="39"
+                icon="📅"
                 color="oklch(0.45 0.18 262)"
+              />
+              <StatsCard
+                title="Percentage"
+                value="87%"
+                icon="📊"
+                color="oklch(0.68 0.19 50)"
               />
             </div>
             <div
-              className="bg-white rounded-2xl border p-5 shadow-sm mb-6"
+              className="bg-white rounded-2xl border p-5 shadow-sm"
               style={{ borderColor: "oklch(0.93 0.02 255)" }}
             >
               <div className="flex justify-between text-sm mb-2">
@@ -196,10 +551,10 @@ export function StudentDashboard() {
                   className="font-bold"
                   style={{ color: "oklch(0.55 0.16 165)" }}
                 >
-                  {attendancePct}%
+                  87%
                 </span>
               </div>
-              <Progress value={attendancePct} className="h-3" />
+              <Progress value={87} className="h-3" />
               <p className="text-xs text-muted-foreground mt-2">
                 Minimum 75% attendance required
               </p>
@@ -211,21 +566,34 @@ export function StudentDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Week</TableHead>
+                    <TableHead>Mon</TableHead>
+                    <TableHead>Tue</TableHead>
+                    <TableHead>Wed</TableHead>
+                    <TableHead>Thu</TableHead>
+                    <TableHead>Fri</TableHead>
+                    <TableHead>Sat</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {SAMPLE_ATTENDANCE.map((a) => (
-                    <TableRow key={a.recordId.toString()}>
-                      <TableCell>{a.date}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${a.status === "Present" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-                        >
-                          {a.status}
-                        </span>
+                  {ATTENDANCE_WEEKS.map((w) => (
+                    <TableRow key={w.week}>
+                      <TableCell className="text-xs font-medium">
+                        {w.week}
                       </TableCell>
+                      {[w.mon, w.tue, w.wed, w.thu, w.fri, w.sat].map(
+                        (d, j) => (
+                          <TableCell
+                            key={["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][j]}
+                          >
+                            {d === "P" ? (
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-500" />
+                            )}
+                          </TableCell>
+                        ),
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -234,132 +602,86 @@ export function StudentDashboard() {
           </div>
         );
 
-      case "homework":
-        return (
-          <div>
-            <SectionHeader
-              title="Homework"
-              description="Pending and completed assignments"
-            />
-            <div className="space-y-4">
-              {SAMPLE_HOMEWORK.map((hw) => (
-                <div
-                  key={hw.homeworkId.toString()}
-                  className="bg-white rounded-2xl border p-5 shadow-sm"
-                  style={{ borderColor: "oklch(0.93 0.02 255)" }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground mb-1">
-                        {hw.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {hw.description}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full font-medium"
-                          style={{
-                            background: "oklch(0.95 0.04 255)",
-                            color: "oklch(0.45 0.18 262)",
-                          }}
-                        >
-                          {hw.classLevel}
-                        </span>
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          📅 Due: {hw.dueDate}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-800 font-semibold ml-3 shrink-0">
-                      Pending
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
       case "results":
         return (
-          <div>
+          <div className="space-y-4">
             <SectionHeader
-              title="Test Results"
-              description="Your exam scores and performance"
+              title="Exam Results"
+              description="Your test scores and performance"
             />
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-              <StatsCard
-                title="Average Score"
-                value={`${avgScore}%`}
-                icon="🎯"
-                color="oklch(0.45 0.18 262)"
-              />
-              <StatsCard
-                title="Tests Taken"
-                value={SAMPLE_TEST_RESULTS.length}
-                icon="📝"
-                color="oklch(0.55 0.16 165)"
-              />
-              <StatsCard
-                title="Best Score"
-                value={`${Math.max(...SAMPLE_TEST_RESULTS.map((r) => Number(r.score)))}%`}
-                icon="⭐"
-                color="oklch(0.68 0.19 50)"
-              />
+            <div
+              className="bg-white rounded-2xl border p-5 shadow-sm mb-2"
+              style={{ borderColor: "oklch(0.93 0.02 255)" }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Overall Average
+                  </p>
+                  <p
+                    className="text-3xl font-bold"
+                    style={{ color: "oklch(0.45 0.18 262)" }}
+                  >
+                    86%
+                  </p>
+                </div>
+                <Badge className="bg-green-100 text-green-800 border-0 text-sm px-3 py-1">
+                  Strong in Mathematics 🏆
+                </Badge>
+              </div>
             </div>
             <div className="space-y-3">
-              {SAMPLE_TEST_RESULTS.map((r) => {
-                const pct = Math.round(
-                  (Number(r.score) / Number(r.maxScore)) * 100,
-                );
-                const color =
-                  pct >= 80
-                    ? "oklch(0.55 0.16 165)"
-                    : pct >= 60
-                      ? "oklch(0.68 0.19 50)"
-                      : "oklch(0.577 0.245 27)";
+              {SAMPLE_RESULTS.map((r) => {
+                const pct = Math.round((r.marks / r.total) * 100);
                 return (
                   <div
-                    key={r.resultId.toString()}
+                    key={r.id}
                     className="bg-white rounded-2xl border p-5 shadow-sm"
                     style={{ borderColor: "oklch(0.93 0.02 255)" }}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <h3 className="font-semibold text-foreground text-sm">
-                          {r.subject}
+                          {r.title}
                         </h3>
                         <p className="text-xs text-muted-foreground">
-                          {r.testDate}
+                          {r.marks}/{r.total} marks
                         </p>
                       </div>
-                      <span className="text-2xl font-bold" style={{ color }}>
-                        {pct}%
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-indigo-100 text-indigo-800 border-0">
+                          {r.grade}
+                        </Badge>
+                        <span
+                          className="text-2xl font-bold"
+                          style={{ color: "oklch(0.45 0.18 262)" }}
+                        >
+                          {pct}%
+                        </span>
+                      </div>
                     </div>
                     <Progress value={pct} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {r.score.toString()} / {r.maxScore.toString()} marks
-                    </p>
                   </div>
                 );
               })}
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
+              ⭐ Strong in Mathematics – Keep it up!
             </div>
           </div>
         );
 
       case "materials":
         return (
-          <div>
+          <div className="space-y-4">
             <SectionHeader
               title="Study Materials"
               description="Download your learning resources"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {SAMPLE_STUDY_MATERIALS.map((m) => (
+              {SAMPLE_MATERIALS.map((m, idx) => (
                 <div
-                  key={m.materialId.toString()}
+                  key={m.id}
                   className="bg-white rounded-2xl border p-5 shadow-sm"
                   style={{ borderColor: "oklch(0.93 0.02 255)" }}
                 >
@@ -367,81 +689,24 @@ export function StudentDashboard() {
                     className="w-10 h-10 rounded-xl mb-3 flex items-center justify-center text-lg"
                     style={{ background: "oklch(0.95 0.04 255)" }}
                   >
-                    📄
+                    {m.type === "PDF" ? "📄" : "🖼️"}
                   </div>
                   <h3 className="font-semibold text-foreground text-sm mb-1">
                     {m.title}
                   </h3>
-                  <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
-                    {m.description}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{
-                        background: "oklch(0.95 0.04 255)",
-                        color: "oklch(0.45 0.18 262)",
-                      }}
-                    >
-                      {m.classLevel}
-                    </span>
-                    <a
-                      href={m.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-7"
-                      >
-                        <Download className="w-3 h-3 mr-1" /> Download
-                      </Button>
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case "certificates":
-        return (
-          <div>
-            <SectionHeader
-              title="My Certificates"
-              description="Your earned certificates"
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {SAMPLE_CERTIFICATES.map((cert) => (
-                <div
-                  key={cert.certId.toString()}
-                  className="bg-white rounded-2xl border p-6 shadow-sm text-center overflow-hidden relative"
-                  style={{ borderColor: "oklch(0.68 0.19 50)" }}
-                >
-                  <div
-                    className="absolute top-0 left-0 right-0 h-1"
-                    style={{
-                      background:
-                        "linear-gradient(90deg, oklch(0.45 0.18 262), oklch(0.68 0.19 50))",
-                    }}
-                  />
-                  <div className="text-5xl mb-3">🏆</div>
-                  <h3 className="font-bold text-foreground mb-1">
-                    {cert.courseName}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Certificate Number: {cert.certNumber}
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Issued on: {cert.issueDate}
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {m.type} · {m.subject}
                   </p>
                   <Button
+                    variant="outline"
                     size="sm"
-                    className="text-white border-0"
-                    style={{ background: "oklch(0.45 0.18 262)" }}
+                    className="w-full text-xs"
+                    onClick={() =>
+                      toast.info("File download available in full version")
+                    }
+                    data-ocid={`materials.download_button.${idx + 1}`}
                   >
-                    <Download className="w-3 h-3 mr-1.5" /> Download
+                    <Download className="w-3 h-3 mr-1" /> Download
                   </Button>
                 </div>
               ))}
@@ -449,97 +714,45 @@ export function StudentDashboard() {
           </div>
         );
 
-      case "payments":
+      case "notifications":
         return (
-          <div>
+          <div className="space-y-4">
             <SectionHeader
-              title="Payments"
-              description="Your payment history and dues"
+              title="Notifications"
+              description="Messages from teachers and admin"
             />
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <StatsCard
-                title="Total Paid"
-                value="₹798"
-                icon="✅"
-                color="oklch(0.55 0.16 165)"
-              />
-              <StatsCard
-                title="Current Plan"
-                value="Standard"
-                icon="⭐"
-                color="oklch(0.45 0.18 262)"
-              />
-            </div>
-
-            {/* Pay Now for upcoming month */}
-            <div
-              className="bg-white rounded-2xl border p-5 shadow-sm mb-6 flex items-center justify-between"
-              style={{ borderColor: "oklch(0.68 0.19 50)" }}
-            >
-              <div>
-                <h3 className="font-semibold text-foreground">
-                  March 2026 Fee Due
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Standard Plan · ₹399/month
-                </p>
-                <p className="text-xs" style={{ color: "oklch(0.68 0.19 50)" }}>
-                  Due by: March 5, 2026
-                </p>
-              </div>
-              <Button
-                className="text-white border-0 shrink-0"
-                style={{ background: "oklch(0.68 0.19 50)" }}
-                onClick={() =>
-                  window.open("https://wa.me/917996401388", "_blank")
-                }
-              >
-                Contact to Pay
-              </Button>
-            </div>
-
-            <div
-              className="bg-white rounded-2xl border shadow-sm overflow-hidden"
-              style={{ borderColor: "oklch(0.93 0.02 255)" }}
-            >
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Payment ID</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {SAMPLE_PAYMENTS.filter(
-                    (p) => p.studentId === STUDENT_ID,
-                  ).map((p) => (
-                    <TableRow key={p.paymentId.toString()}>
-                      <TableCell className="font-mono text-xs">
-                        #{p.paymentId.toString()}
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        ₹{(Number(p.amount) / 100).toFixed(0)}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        Order-{p.paymentId.toString().padStart(4, "0")}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${p.status === "Paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}
-                        >
-                          {p.status}
+            <div className="space-y-3">
+              {SAMPLE_NOTIFICATIONS.map((n) => (
+                <div
+                  key={n.id}
+                  className="bg-white rounded-2xl border p-5 shadow-sm"
+                  style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: "oklch(0.95 0.04 262)" }}
+                    >
+                      <Bell
+                        className="w-4 h-4"
+                        style={{ color: "oklch(0.45 0.18 262)" }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-foreground">{n.text}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground">
+                          {n.time}
                         </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        <Badge className="text-xs bg-blue-50 text-blue-700 border-0">
+                          {n.from}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <p className="text-center text-xs text-muted-foreground mt-3">
-              Contact our team for fee payment assistance.
-            </p>
           </div>
         );
 

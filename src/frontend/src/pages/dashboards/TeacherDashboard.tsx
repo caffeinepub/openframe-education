@@ -29,7 +29,7 @@ import {
   Upload,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
@@ -76,6 +76,29 @@ export function TeacherDashboard() {
   const { login, identity, isInitializing, isLoggingIn, isLoginError, clear } =
     useInternetIdentity();
   const navigate = useNavigate();
+
+  const pendingRetry = useRef(false);
+
+  useEffect(() => {
+    if (
+      pendingRetry.current &&
+      !isInitializing &&
+      !isLoggingIn &&
+      !isLoginError
+    ) {
+      pendingRetry.current = false;
+      login();
+    }
+  }, [isInitializing, isLoggingIn, isLoginError, login]);
+
+  const handleLogin = () => {
+    if (isLoginError) {
+      pendingRetry.current = true;
+      clear();
+    } else {
+      login();
+    }
+  };
 
   const [activeSection, setActiveSection] = useState("students");
   const [attendanceData, setAttendanceData] = useState<Record<string, string>>(
@@ -178,7 +201,7 @@ export function TeacherDashboard() {
 
               <Button
                 data-ocid="teacher.ii.primary_button"
-                onClick={login}
+                onClick={handleLogin}
                 disabled={isLoggingIn}
                 className="w-full h-12 text-white border-0 rounded-xl font-semibold text-base shadow-md hover:opacity-90 transition-opacity"
                 style={{
@@ -316,11 +339,21 @@ export function TeacherDashboard() {
   };
 
   const classLevels = [
-    "Nursery – UKG",
-    "1st to 5th",
-    "6th to 8th",
-    "9th to 10th",
-    "11th to 12th",
+    "Nursery",
+    "UKG",
+    "LKG",
+    "1st Standard",
+    "2nd Standard",
+    "3rd Standard",
+    "4th Standard",
+    "5th Standard",
+    "6th Standard",
+    "7th Standard",
+    "8th Standard",
+    "9th Standard",
+    "10th Standard",
+    "11th Standard",
+    "12th Standard",
   ];
 
   const renderContent = () => {

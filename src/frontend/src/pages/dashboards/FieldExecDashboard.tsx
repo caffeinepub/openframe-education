@@ -21,13 +21,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   BookOpen,
+  CalendarCheck,
   Check,
+  CheckSquare,
   ClipboardList,
   Copy,
   GraduationCap,
   IndianRupee,
   LayoutDashboard,
   Loader2,
+  MapPin,
   MessageCircle,
   Send,
   Share2,
@@ -42,6 +45,7 @@ import { toast } from "sonner";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
+import { SAMPLE_FE_VISIT_LOGS } from "../../data/sampleData";
 import { useCreateReferral } from "../../hooks/useQueries";
 import type {
   EnrollmentLead,
@@ -126,6 +130,21 @@ const navItems = [
     label: "Withdraw",
     icon: <Wallet className="w-4 h-4" />,
   },
+  {
+    id: "visit-log",
+    label: "Visit Log",
+    icon: <MapPin className="w-4 h-4" />,
+  },
+  {
+    id: "tasks",
+    label: "Daily Tasks",
+    icon: <CheckSquare className="w-4 h-4" />,
+  },
+  {
+    id: "attendance",
+    label: "Attendance",
+    icon: <CalendarCheck className="w-4 h-4" />,
+  },
 ];
 
 // ─── Course Data ──────────────────────────────────────────────────────────────
@@ -180,6 +199,55 @@ export function FieldExecDashboard() {
   const [activeSection, setActiveSection] = useState("overview");
   const [linkCopied, setLinkCopied] = useState(false);
   const [localReferrals, setLocalReferrals] = useState<LocalReferral[]>([]);
+  const [gpsCheckIns, setGpsCheckIns] = useState<
+    Array<{
+      id: string;
+      time: string;
+      lat: number;
+      lng: number;
+      date: string;
+      purpose: string;
+      leadName: string;
+    }>
+  >(() => {
+    try {
+      const saved = localStorage.getItem("FE_GPS_CHECKINS");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [visitForm, setVisitForm] = useState({
+    leadName: "",
+    purpose: "Student follow-up",
+  });
+  const [tasks, setTasks] = useState<
+    Array<{
+      id: string;
+      title: string;
+      status: "pending" | "done";
+      date: string;
+    }>
+  >(() => {
+    try {
+      const s = localStorage.getItem("FE_TASKS");
+      return s ? JSON.parse(s) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [taskInput, setTaskInput] = useState("");
+  const [feAttendance, setFeAttendance] = useState<
+    Array<{ date: string; status: "Present" | "Absent" | "Half Day" }>
+  >(() => {
+    try {
+      const s = localStorage.getItem("FE_ATTENDANCE");
+      return s ? JSON.parse(s) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // localStorage-based state
   const [feAccount, setFeAccount] = useState<FieldExecAccount | null>(null);
@@ -401,11 +469,21 @@ export function FieldExecDashboard() {
   };
 
   const classLevels = [
-    "Nursery – UKG",
-    "1st to 5th",
-    "6th to 8th",
-    "9th to 10th",
-    "11th to 12th",
+    "Nursery",
+    "UKG",
+    "LKG",
+    "1st Standard",
+    "2nd Standard",
+    "3rd Standard",
+    "4th Standard",
+    "5th Standard",
+    "6th Standard",
+    "7th Standard",
+    "8th Standard",
+    "9th Standard",
+    "10th Standard",
+    "11th Standard",
+    "12th Standard",
   ];
 
   // ─── Section Renders ────────────────────────────────────────────────────────
@@ -453,6 +531,55 @@ export function FieldExecDashboard() {
           color="oklch(0.62 0.2 320)"
           data-ocid="overview.bonus.card"
         />
+      </div>
+
+      {/* GPS Quick Check-In */}
+      <div
+        className="rounded-2xl border p-4 flex items-center justify-between gap-4"
+        style={{
+          background: "oklch(0.15 0.06 265)",
+          borderColor: "oklch(0.3 0.06 265)",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <MapPin
+            className="w-6 h-6"
+            style={{ color: "oklch(0.65 0.18 165)" }}
+          />
+          <div>
+            <p className="font-semibold text-white text-sm">GPS Check-In</p>
+            <p className="text-xs" style={{ color: "oklch(0.65 0.03 265)" }}>
+              {
+                gpsCheckIns.filter(
+                  (c) => c.date === new Date().toISOString().slice(0, 10),
+                ).length
+              }{" "}
+              check-ins today
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+          style={{
+            background: gpsLoading
+              ? "oklch(0.4 0.08 265)"
+              : "oklch(0.55 0.16 165)",
+          }}
+          onClick={() => handleGpsCheckIn("", "Area survey")}
+          disabled={gpsLoading}
+          data-ocid="overview.button"
+        >
+          {gpsLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Locating...
+            </>
+          ) : (
+            <>
+              <MapPin className="w-4 h-4" /> Check In
+            </>
+          )}
+        </button>
       </div>
 
       {/* Commission Plan Cards */}
@@ -1777,6 +1904,242 @@ export function FieldExecDashboard() {
   };
 
   // ─── Withdraw Earnings ──────────────────────────────────────────────────────
+
+  const handleGpsCheckIn = (
+    leadName = visitForm.leadName,
+    purpose = visitForm.purpose,
+  ) => {
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const checkIn = {
+          id: `ci${Date.now()}`,
+          time: new Date().toLocaleTimeString(),
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          date: new Date().toISOString().slice(0, 10),
+          purpose,
+          leadName,
+        };
+        const updated = [checkIn, ...gpsCheckIns];
+        setGpsCheckIns(updated);
+        localStorage.setItem("FE_GPS_CHECKINS", JSON.stringify(updated));
+        setGpsLoading(false);
+        toast.success(`Checked in at ${checkIn.time} – Location captured`);
+      },
+      () => {
+        setGpsLoading(false);
+        toast.error("Location access denied. Please enable GPS.");
+      },
+      { timeout: 10000 },
+    );
+  };
+
+  const renderVisitLog = () => (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Visit Log"
+        description="Your daily field visit history"
+      />
+
+      {/* Check-In Card */}
+      <div
+        className="rounded-2xl border p-6 shadow-sm"
+        style={{
+          background: "oklch(0.15 0.06 265)",
+          borderColor: "oklch(0.3 0.06 265)",
+        }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <MapPin
+            className="w-6 h-6"
+            style={{ color: "oklch(0.65 0.18 165)" }}
+          />
+          <div>
+            <h3 className="font-semibold text-white">GPS Check-In</h3>
+            <p className="text-xs" style={{ color: "oklch(0.65 0.03 265)" }}>
+              Record your current location for today's visit
+            </p>
+          </div>
+          {gpsCheckIns.length > 0 && (
+            <span
+              className="ml-auto text-xs px-2.5 py-0.5 rounded-full font-semibold"
+              style={{
+                background: "oklch(0.55 0.16 165 / 0.2)",
+                color: "oklch(0.65 0.18 165)",
+              }}
+            >
+              {
+                gpsCheckIns.filter(
+                  (c) => c.date === new Date().toISOString().slice(0, 10),
+                ).length
+              }{" "}
+              check-ins today
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label
+              htmlFor="fe-lead-name"
+              className="text-xs font-medium block mb-1"
+              style={{ color: "oklch(0.65 0.03 265)" }}
+            >
+              Lead Name
+            </label>
+            <input
+              className="w-full rounded-lg px-3 py-2 text-sm text-white border"
+              style={{
+                background: "oklch(0.2 0.06 265)",
+                borderColor: "oklch(0.35 0.06 265)",
+              }}
+              placeholder="Customer name"
+              value={visitForm.leadName}
+              id="fe-lead-name"
+              onChange={(e) =>
+                setVisitForm((f) => ({ ...f, leadName: e.target.value }))
+              }
+              data-ocid="visit-log.input"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="fe-purpose"
+              className="text-xs font-medium block mb-1"
+              style={{ color: "oklch(0.65 0.03 265)" }}
+            >
+              Purpose
+            </label>
+            <select
+              className="w-full rounded-lg px-3 py-2 text-sm text-white border"
+              style={{
+                background: "oklch(0.2 0.06 265)",
+                borderColor: "oklch(0.35 0.06 265)",
+              }}
+              id="fe-purpose"
+              value={visitForm.purpose}
+              onChange={(e) =>
+                setVisitForm((f) => ({ ...f, purpose: e.target.value }))
+              }
+              data-ocid="visit-log.select"
+            >
+              <option>Student follow-up</option>
+              <option>New lead visit</option>
+              <option>Enrollment conversion</option>
+              <option>Area survey</option>
+            </select>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white"
+          style={{
+            background: gpsLoading
+              ? "oklch(0.4 0.08 265)"
+              : "oklch(0.55 0.16 165)",
+          }}
+          onClick={() => handleGpsCheckIn()}
+          disabled={gpsLoading}
+          data-ocid="visit-log.button"
+        >
+          {gpsLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Getting Location...
+            </>
+          ) : (
+            <>
+              <MapPin className="w-4 h-4" /> Check In Now
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Recent Check-ins */}
+      {gpsCheckIns.length > 0 && (
+        <div>
+          <h3 className="font-semibold text-foreground mb-3">
+            Today's Check-ins
+          </h3>
+          <div className="space-y-2">
+            {gpsCheckIns.map((c, i) => (
+              <div
+                key={c.id}
+                className="bg-white rounded-xl border p-4 flex items-center gap-3"
+                style={{ borderColor: "oklch(0.93 0.02 255)" }}
+                data-ocid={`visit-log.item.${i + 1}`}
+              >
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: "oklch(0.95 0.04 165)" }}
+                >
+                  <MapPin
+                    className="w-4 h-4"
+                    style={{ color: "oklch(0.55 0.16 165)" }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {c.purpose} {c.leadName && `– ${c.leadName}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {c.time} · {c.lat.toFixed(4)}, {c.lng.toFixed(4)}
+                  </p>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 font-medium">
+                  ✓ Logged
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Visit History from sample data */}
+      <div>
+        <h3 className="font-semibold text-foreground mb-3">Visit History</h3>
+        <div
+          className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+          style={{ borderColor: "oklch(0.93 0.02 255)" }}
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/30">
+                <th className="text-left py-3 px-4 text-xs font-semibold">
+                  Date
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold">
+                  Time
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold">
+                  Location
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold">
+                  Purpose
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {SAMPLE_FE_VISIT_LOGS.map((v, i) => (
+                <tr
+                  key={v.id}
+                  className="border-b last:border-0 hover:bg-muted/20"
+                  data-ocid={`visit-log.row.${i + 1}`}
+                >
+                  <td className="py-3 px-4 text-xs">{v.date}</td>
+                  <td className="py-3 px-4 text-xs">{v.time}</td>
+                  <td className="py-3 px-4 text-xs">
+                    {v.latitude.toFixed(4)}, {v.longitude.toFixed(4)}
+                  </td>
+                  <td className="py-3 px-4 text-xs">{v.purpose}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderWithdraw = () => (
     <div className="space-y-6">
       <SectionHeader
@@ -1943,6 +2306,190 @@ export function FieldExecDashboard() {
     </div>
   );
 
+  const addTask = () => {
+    if (!taskInput.trim()) return;
+    const t = {
+      id: `t${Date.now()}`,
+      title: taskInput.trim(),
+      status: "pending" as const,
+      date: new Date().toISOString().slice(0, 10),
+    };
+    const updated = [t, ...tasks];
+    setTasks(updated);
+    localStorage.setItem("FE_TASKS", JSON.stringify(updated));
+    setTaskInput("");
+  };
+  const toggleTask = (id: string) => {
+    const updated = tasks.map((t) =>
+      t.id === id
+        ? {
+            ...t,
+            status:
+              t.status === "done" ? ("pending" as const) : ("done" as const),
+          }
+        : t,
+    );
+    setTasks(updated);
+    localStorage.setItem("FE_TASKS", JSON.stringify(updated));
+  };
+  const deleteTask = (id: string) => {
+    const updated = tasks.filter((t) => t.id !== id);
+    setTasks(updated);
+    localStorage.setItem("FE_TASKS", JSON.stringify(updated));
+  };
+  const markAttendance = (status: "Present" | "Absent" | "Half Day") => {
+    const today = new Date().toISOString().slice(0, 10);
+    const exists = feAttendance.find((a) => a.date === today);
+    let updated: Array<{
+      date: string;
+      status: "Present" | "Absent" | "Half Day";
+    }>;
+    if (exists) {
+      updated = feAttendance.map((a) =>
+        a.date === today ? { ...a, status } : a,
+      );
+    } else {
+      updated = [{ date: today, status }, ...feAttendance];
+    }
+    setFeAttendance(updated);
+    localStorage.setItem("FE_ATTENDANCE", JSON.stringify(updated));
+    toast.success(`Marked as ${status} for today`);
+  };
+
+  const renderDailyTasks = () => (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Daily Tasks"
+        description="Track your daily field activities and tasks"
+      />
+      <div className="bg-white rounded-2xl border p-5 shadow-sm space-y-4">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Add a new task..."
+            value={taskInput}
+            onChange={(e) => setTaskInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addTask()}
+            className="flex-1"
+            data-ocid="tasks.input"
+          />
+          <Button
+            onClick={addTask}
+            data-ocid="tasks.primary_button"
+            style={{ background: "oklch(0.45 0.18 262)", color: "white" }}
+          >
+            Add
+          </Button>
+        </div>
+        {tasks.length === 0 ? (
+          <p
+            className="text-center text-muted-foreground py-6"
+            data-ocid="tasks.empty_state"
+          >
+            No tasks yet. Add your first task above.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {tasks.map((t, idx) => (
+              <div
+                key={t.id}
+                data-ocid={`tasks.item.${idx + 1}`}
+                className={`flex items-center gap-3 p-3 rounded-xl border ${t.status === "done" ? "bg-green-50 border-green-200" : "bg-gray-50"}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={t.status === "done"}
+                  onChange={() => toggleTask(t.id)}
+                  className="w-4 h-4 cursor-pointer"
+                />
+                <span
+                  className={`flex-1 text-sm ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}
+                >
+                  {t.title}
+                </span>
+                <span className="text-xs text-muted-foreground">{t.date}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => deleteTask(t.id)}
+                  data-ocid={`tasks.delete_button.${idx + 1}`}
+                  className="h-7 w-7 p-0 text-red-400 hover:text-red-600"
+                >
+                  ×
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderFeAttendance = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const todayRecord = feAttendance.find((a) => a.date === today);
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="My Attendance"
+          description="Mark and track your daily field attendance"
+        />
+        <div className="bg-white rounded-2xl border p-6 shadow-sm">
+          <p className="font-semibold text-foreground mb-1">Today: {today}</p>
+          {todayRecord ? (
+            <p className="text-sm text-green-600 font-medium mb-4">
+              Status: {todayRecord.status}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground mb-4">Not marked yet</p>
+          )}
+          <div className="flex gap-3 flex-wrap">
+            {(["Present", "Absent", "Half Day"] as const).map((s) => (
+              <Button
+                key={s}
+                data-ocid={`attendance.${s.toLowerCase().replace(" ", "-")}.button`}
+                variant={todayRecord?.status === s ? "default" : "outline"}
+                onClick={() => markAttendance(s)}
+                style={
+                  todayRecord?.status === s
+                    ? { background: "oklch(0.45 0.18 262)", color: "white" }
+                    : {}
+                }
+              >
+                {s}
+              </Button>
+            ))}
+          </div>
+        </div>
+        {feAttendance.length > 0 && (
+          <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {feAttendance.map((a) => (
+                  <TableRow key={a.date} data-ocid="attendance.row">
+                    <TableCell>{a.date}</TableCell>
+                    <TableCell>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${a.status === "Present" ? "bg-green-100 text-green-700" : a.status === "Absent" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}
+                      >
+                        {a.status}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeSection) {
       case "overview":
@@ -1965,6 +2512,12 @@ export function FieldExecDashboard() {
         return renderLeaderboard();
       case "withdraw":
         return renderWithdraw();
+      case "visit-log":
+        return renderVisitLog();
+      case "tasks":
+        return renderDailyTasks();
+      case "attendance":
+        return renderFeAttendance();
       default:
         return renderOverview();
     }

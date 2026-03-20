@@ -29,7 +29,9 @@ import {
   IndianRupee,
   LayoutDashboard,
   Lock,
+  MapPin,
   Newspaper,
+  PenLine,
   Phone,
   PlusCircle,
   School,
@@ -49,11 +51,16 @@ import { StatsCard } from "../../components/dashboard/StatsCard";
 import {
   SAMPLE_ATTENDANCE,
   SAMPLE_DEMO_BOOKINGS,
+  SAMPLE_EXAMS,
+  SAMPLE_EXAM_RESULTS,
+  SAMPLE_FEE_RECORDS,
+  SAMPLE_FE_VISIT_LOGS,
   SAMPLE_PAYMENTS,
   SAMPLE_REFERRALS,
   SAMPLE_SCHEDULED_CLASSES,
   SAMPLE_STUDENTS,
   SAMPLE_STUDY_MATERIALS,
+  SAMPLE_TIMETABLE,
 } from "../../data/sampleData";
 import {
   useGetAllDemoBookings,
@@ -220,6 +227,26 @@ const navItems = [
     id: "teacher-notifications",
     label: "Notifications",
     icon: <Bell className="w-4 h-4" />,
+  },
+  {
+    id: "exams",
+    label: "Exams & Marks",
+    icon: <PenLine className="w-4 h-4" />,
+  },
+  {
+    id: "timetable",
+    label: "Timetable",
+    icon: <Calendar className="w-4 h-4" />,
+  },
+  {
+    id: "fee-tracking",
+    label: "Fee Tracking",
+    icon: <Wallet className="w-4 h-4" />,
+  },
+  {
+    id: "fe-locations",
+    label: "FE Locations",
+    icon: <MapPin className="w-4 h-4" />,
   },
 ];
 
@@ -1410,6 +1437,815 @@ function AdminTeacherClassTrackingLogs() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Admin Exams Section ──────────────────────────────────────────────────────
+
+function AdminExamsSection() {
+  const [examList, setExamList] = useState([...SAMPLE_EXAMS]);
+  const [selectedExam, setSelectedExam] = useState<string | null>(null);
+  const [showAddExam, setShowAddExam] = useState(false);
+  const [examForm, setExamForm] = useState({
+    title: "",
+    className: "",
+    section: "A",
+    subject: "",
+    date: "",
+    totalMarks: "50",
+  });
+
+  const results = SAMPLE_EXAM_RESULTS.filter((r) => r.examId === selectedExam);
+  const selectedExamObj = examList.find((e) => e.id === selectedExam);
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Exams & Marks"
+        description="Create exams and enter student marks"
+      />
+      <div className="grid grid-cols-3 gap-4">
+        <StatsCard
+          title="Total Exams"
+          value={examList.length}
+          icon="📝"
+          color="oklch(0.45 0.18 262)"
+        />
+        <StatsCard
+          title="Students Tested"
+          value="7"
+          icon="🎯"
+          color="oklch(0.55 0.16 165)"
+        />
+        <StatsCard
+          title="Avg Score"
+          value="72%"
+          icon="📊"
+          color="oklch(0.68 0.19 50)"
+        />
+      </div>
+      <div className="flex justify-between items-center">
+        <h3 className="font-semibold text-foreground">Exam List</h3>
+        <Button
+          size="sm"
+          onClick={() => setShowAddExam(true)}
+          data-ocid="exams.open_modal_button"
+          style={{ background: "oklch(0.45 0.18 262)" }}
+          className="text-white border-0"
+        >
+          + Add Exam
+        </Button>
+      </div>
+      {showAddExam && (
+        <div className="bg-white border rounded-2xl p-5 shadow-sm space-y-3">
+          <h4 className="font-semibold">New Exam</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Title</Label>
+              <Input
+                value={examForm.title}
+                onChange={(e) =>
+                  setExamForm((f) => ({ ...f, title: e.target.value }))
+                }
+                placeholder="Exam title"
+                data-ocid="exams.input"
+              />
+            </div>
+            <div>
+              <Label>Class</Label>
+              <Input
+                value={examForm.className}
+                onChange={(e) =>
+                  setExamForm((f) => ({ ...f, className: e.target.value }))
+                }
+                placeholder="8th"
+              />
+            </div>
+            <div>
+              <Label>Subject</Label>
+              <Input
+                value={examForm.subject}
+                onChange={(e) =>
+                  setExamForm((f) => ({ ...f, subject: e.target.value }))
+                }
+                placeholder="Mathematics"
+              />
+            </div>
+            <div>
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={examForm.date}
+                onChange={(e) =>
+                  setExamForm((f) => ({ ...f, date: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Total Marks</Label>
+              <Input
+                value={examForm.totalMarks}
+                onChange={(e) =>
+                  setExamForm((f) => ({ ...f, totalMarks: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="text-white border-0"
+              style={{ background: "oklch(0.45 0.18 262)" }}
+              onClick={() => {
+                setExamList((l) => [
+                  ...l,
+                  {
+                    ...examForm,
+                    id: `ex${Date.now()}`,
+                    totalMarks: Number(examForm.totalMarks),
+                    createdBy: "Admin",
+                  },
+                ]);
+                setShowAddExam(false);
+                toast.success("Exam added");
+              }}
+              data-ocid="exams.submit_button"
+            >
+              Save Exam
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowAddExam(false)}
+              data-ocid="exams.cancel_button"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Class</TableHead>
+              <TableHead>Subject</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Marks</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {examList.map((ex) => (
+              <TableRow key={ex.id}>
+                <TableCell className="font-medium">{ex.title}</TableCell>
+                <TableCell>
+                  {ex.className} {ex.section}
+                </TableCell>
+                <TableCell>{ex.subject}</TableCell>
+                <TableCell>{ex.date}</TableCell>
+                <TableCell>{ex.totalMarks}</TableCell>
+                <TableCell className="space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedExam(ex.id)}
+                    data-ocid="exams.secondary_button"
+                  >
+                    View Results
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-red-600"
+                    onClick={() =>
+                      setExamList((l) => l.filter((e) => e.id !== ex.id))
+                    }
+                    data-ocid="exams.delete_button"
+                  >
+                    Delete
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      {selectedExam && (
+        <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+          <div className="p-4 border-b flex justify-between items-center">
+            <h4 className="font-semibold">Results: {selectedExamObj?.title}</h4>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSelectedExam(null)}
+            >
+              Close
+            </Button>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Roll No</TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead>Marks</TableHead>
+                <TableHead>Grade</TableHead>
+                <TableHead>Remarks</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {results.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-muted-foreground py-6"
+                  >
+                    No results entered yet
+                  </TableCell>
+                </TableRow>
+              ) : (
+                results.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{r.rollNo}</TableCell>
+                    <TableCell>
+                      {r.studentName}{" "}
+                      {r.marksObtained <
+                        (selectedExamObj?.totalMarks ?? 50) * 0.4 && (
+                        <span className="ml-1 text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">
+                          Weak
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>{r.marksObtained}</TableCell>
+                    <TableCell>
+                      <span className="font-semibold">{r.grade}</span>
+                    </TableCell>
+                    <TableCell>{r.remarks}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Admin Timetable Section ──────────────────────────────────────────────────
+
+const CLASS_LIST = [
+  "Nursery",
+  "LKG",
+  "UKG",
+  "1st",
+  "2nd",
+  "3rd",
+  "4th",
+  "5th",
+  "6th",
+  "7th",
+  "8th",
+  "9th",
+  "10th",
+  "11th",
+  "12th",
+];
+const DAYS_OF_WEEK = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+function AdminTimetableSection() {
+  const [ttClass, setTtClass] = useState("8th");
+  const [ttSection, setTtSection] = useState("A");
+  const [ttEntries, setTtEntries] = useState([...SAMPLE_TIMETABLE]);
+  const [showTtForm, setShowTtForm] = useState(false);
+  const [ttForm, setTtForm] = useState({
+    day: "Monday",
+    subject: "",
+    teacher: "",
+    startTime: "",
+    endTime: "",
+  });
+
+  const filtered = ttEntries.filter(
+    (t) => t.className === ttClass && t.section === ttSection,
+  );
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Timetable"
+        description="Weekly class schedule per class"
+      />
+      <div className="flex gap-3 flex-wrap items-end">
+        <div>
+          <Label className="text-xs mb-1 block">Class</Label>
+          <select
+            className="border rounded-lg px-3 py-2 text-sm"
+            value={ttClass}
+            onChange={(e) => setTtClass(e.target.value)}
+          >
+            {CLASS_LIST.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs mb-1 block">Section</Label>
+          <select
+            className="border rounded-lg px-3 py-2 text-sm"
+            value={ttSection}
+            onChange={(e) => setTtSection(e.target.value)}
+          >
+            {["A", "B", "C"].map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+        <Button
+          size="sm"
+          className="text-white border-0"
+          style={{ background: "oklch(0.45 0.18 262)" }}
+          onClick={() => setShowTtForm(true)}
+          data-ocid="timetable.open_modal_button"
+        >
+          + Add Schedule
+        </Button>
+      </div>
+      {showTtForm && (
+        <div className="bg-white border rounded-2xl p-5 shadow-sm space-y-3">
+          <h4 className="font-semibold">Add Schedule</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Day</Label>
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                value={ttForm.day}
+                onChange={(e) =>
+                  setTtForm((f) => ({ ...f, day: e.target.value }))
+                }
+              >
+                {DAYS_OF_WEEK.map((d) => (
+                  <option key={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label>Subject</Label>
+              <Input
+                className="mt-1"
+                value={ttForm.subject}
+                onChange={(e) =>
+                  setTtForm((f) => ({ ...f, subject: e.target.value }))
+                }
+                placeholder="Mathematics"
+                data-ocid="timetable.input"
+              />
+            </div>
+            <div>
+              <Label>Teacher</Label>
+              <Input
+                className="mt-1"
+                value={ttForm.teacher}
+                onChange={(e) =>
+                  setTtForm((f) => ({ ...f, teacher: e.target.value }))
+                }
+                placeholder="Mrs. Lakshmi"
+              />
+            </div>
+            <div>
+              <Label>Start Time</Label>
+              <Input
+                type="time"
+                className="mt-1"
+                value={ttForm.startTime}
+                onChange={(e) =>
+                  setTtForm((f) => ({ ...f, startTime: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>End Time</Label>
+              <Input
+                type="time"
+                className="mt-1"
+                value={ttForm.endTime}
+                onChange={(e) =>
+                  setTtForm((f) => ({ ...f, endTime: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="text-white border-0"
+              style={{ background: "oklch(0.45 0.18 262)" }}
+              onClick={() => {
+                setTtEntries((l) => [
+                  ...l,
+                  {
+                    ...ttForm,
+                    id: `tt${Date.now()}`,
+                    className: ttClass,
+                    section: ttSection,
+                  },
+                ]);
+                setShowTtForm(false);
+                toast.success("Schedule added");
+              }}
+              data-ocid="timetable.submit_button"
+            >
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowTtForm(false)}
+              data-ocid="timetable.cancel_button"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Day</TableHead>
+              <TableHead>Subject</TableHead>
+              <TableHead>Teacher</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="text-center text-muted-foreground py-6"
+                >
+                  No schedule for this class
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((slot) => (
+                <TableRow key={slot.id}>
+                  <TableCell className="font-medium">{slot.day}</TableCell>
+                  <TableCell>{slot.subject}</TableCell>
+                  <TableCell>{slot.teacher}</TableCell>
+                  <TableCell>
+                    {slot.startTime}–{slot.endTime}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 text-xs"
+                      onClick={() =>
+                        setTtEntries((l) => l.filter((t) => t.id !== slot.id))
+                      }
+                      data-ocid="timetable.delete_button"
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Admin Fee Tracking Section ───────────────────────────────────────────────
+
+function AdminFeeTrackingSection() {
+  const [feeFilter, setFeeFilter] = useState("All");
+  const [feeRecords, setFeeRecords] = useState([...SAMPLE_FEE_RECORDS]);
+  const [showFeeForm, setShowFeeForm] = useState(false);
+  const [feeForm, setFeeForm] = useState({
+    studentName: "",
+    className: "",
+    section: "A",
+    monthlyFee: "",
+    dueDate: "",
+  });
+
+  const filtered =
+    feeFilter === "All"
+      ? feeRecords
+      : feeRecords.filter((f) => f.status === feeFilter);
+  const totalCollected = feeRecords
+    .filter((f) => f.status === "Paid")
+    .reduce((s, f) => s + f.amountPaid, 0);
+  const totalPending = feeRecords
+    .filter((f) => f.status !== "Paid")
+    .reduce((s, f) => s + (f.monthlyFee - f.amountPaid), 0);
+  const overdueCount = feeRecords.filter((f) => f.status === "Overdue").length;
+
+  const feeStatusColor: Record<string, string> = {
+    Paid: "bg-green-100 text-green-800",
+    Unpaid: "bg-red-100 text-red-800",
+    Partial: "bg-yellow-100 text-yellow-800",
+    Overdue: "bg-red-200 text-red-900",
+  };
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        title="Fee Tracking"
+        description="Monitor student fee payment status"
+      />
+      <div className="grid grid-cols-3 gap-4">
+        <StatsCard
+          title="Total Collected"
+          value={`₹${totalCollected}`}
+          icon="✅"
+          color="oklch(0.55 0.16 165)"
+        />
+        <StatsCard
+          title="Pending Amount"
+          value={`₹${totalPending}`}
+          icon="⏳"
+          color="oklch(0.68 0.19 50)"
+        />
+        <StatsCard
+          title="Overdue Students"
+          value={overdueCount}
+          icon="⚠️"
+          color="oklch(0.577 0.245 27)"
+        />
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {["All", "Paid", "Unpaid", "Partial", "Overdue"].map((f) => (
+          <Button
+            key={f}
+            size="sm"
+            variant={feeFilter === f ? "default" : "outline"}
+            onClick={() => setFeeFilter(f)}
+            data-ocid="fee-tracking.tab"
+          >
+            {f}
+          </Button>
+        ))}
+        <Button
+          size="sm"
+          className="text-white border-0 ml-auto"
+          style={{ background: "oklch(0.45 0.18 262)" }}
+          onClick={() => setShowFeeForm(true)}
+          data-ocid="fee-tracking.open_modal_button"
+        >
+          + Add Fee Record
+        </Button>
+      </div>
+      {showFeeForm && (
+        <div className="bg-white border rounded-2xl p-5 shadow-sm space-y-3">
+          <h4 className="font-semibold">Add Fee Record</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Student Name</Label>
+              <Input
+                className="mt-1"
+                value={feeForm.studentName}
+                onChange={(e) =>
+                  setFeeForm((f) => ({ ...f, studentName: e.target.value }))
+                }
+                data-ocid="fee-tracking.input"
+              />
+            </div>
+            <div>
+              <Label>Class</Label>
+              <Input
+                className="mt-1"
+                value={feeForm.className}
+                onChange={(e) =>
+                  setFeeForm((f) => ({ ...f, className: e.target.value }))
+                }
+                placeholder="8th"
+              />
+            </div>
+            <div>
+              <Label>Monthly Fee</Label>
+              <Input
+                className="mt-1"
+                value={feeForm.monthlyFee}
+                onChange={(e) =>
+                  setFeeForm((f) => ({ ...f, monthlyFee: e.target.value }))
+                }
+                placeholder="350"
+              />
+            </div>
+            <div>
+              <Label>Due Date</Label>
+              <Input
+                type="date"
+                className="mt-1"
+                value={feeForm.dueDate}
+                onChange={(e) =>
+                  setFeeForm((f) => ({ ...f, dueDate: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="text-white border-0"
+              style={{ background: "oklch(0.45 0.18 262)" }}
+              onClick={() => {
+                setFeeRecords((l) => [
+                  ...l,
+                  {
+                    id: `fee${Date.now()}`,
+                    studentName: feeForm.studentName,
+                    className: feeForm.className,
+                    section: feeForm.section,
+                    parentPhone: "",
+                    monthlyFee: Number(feeForm.monthlyFee),
+                    amountPaid: 0,
+                    dueDate: feeForm.dueDate,
+                    paidDate: null,
+                    status: "Unpaid",
+                  },
+                ]);
+                setShowFeeForm(false);
+                toast.success("Fee record added");
+              }}
+              data-ocid="fee-tracking.submit_button"
+            >
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowFeeForm(false)}
+              data-ocid="fee-tracking.cancel_button"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Student</TableHead>
+              <TableHead>Class</TableHead>
+              <TableHead>Monthly Fee</TableHead>
+              <TableHead>Paid</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Due Date</TableHead>
+              <TableHead>Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((f, i) => (
+              <TableRow key={f.id} data-ocid={`fee-tracking.item.${i + 1}`}>
+                <TableCell className="font-medium">{f.studentName}</TableCell>
+                <TableCell>
+                  {f.className} {f.section}
+                </TableCell>
+                <TableCell>₹{f.monthlyFee}</TableCell>
+                <TableCell>₹{f.amountPaid}</TableCell>
+                <TableCell>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${feeStatusColor[f.status] || "bg-gray-100"}`}
+                  >
+                    {f.status}
+                  </span>
+                </TableCell>
+                <TableCell>{f.dueDate}</TableCell>
+                <TableCell>
+                  {f.status !== "Paid" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                      onClick={() => {
+                        setFeeRecords((l) =>
+                          l.map((r) =>
+                            r.id === f.id
+                              ? {
+                                  ...r,
+                                  status: "Paid",
+                                  amountPaid: r.monthlyFee,
+                                  paidDate: new Date()
+                                    .toISOString()
+                                    .slice(0, 10),
+                                }
+                              : r,
+                          ),
+                        );
+                        toast.success("Marked as Paid");
+                      }}
+                      data-ocid="fee-tracking.save_button"
+                    >
+                      Mark Paid
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Admin FE Locations Section ───────────────────────────────────────────────
+
+function AdminFELocationsSection() {
+  const [liveCheckIns, setLiveCheckIns] = useState<
+    Array<{
+      id: string;
+      time: string;
+      lat: number;
+      lng: number;
+      date: string;
+      purpose: string;
+      leadName: string;
+    }>
+  >([]);
+
+  useEffect(() => {
+    const load = () => {
+      try {
+        const saved = localStorage.getItem("FE_GPS_CHECKINS");
+        setLiveCheckIns(saved ? JSON.parse(saved) : []);
+      } catch {
+        setLiveCheckIns([]);
+      }
+    };
+    load();
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        title="FE Location Logs"
+        description="Real-time GPS check-in data from field executives"
+      />
+      {liveCheckIns.length === 0 ? (
+        <div
+          className="bg-white rounded-2xl border p-8 text-center text-muted-foreground"
+          data-ocid="fe-locations.empty_state"
+        >
+          <MapPin className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">No GPS check-ins yet</p>
+          <p className="text-sm mt-1">
+            Check-ins submitted by field executives will appear here in real
+            time.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Latitude</TableHead>
+                <TableHead>Longitude</TableHead>
+                <TableHead>Purpose</TableHead>
+                <TableHead>Lead</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {liveCheckIns.map((v, i) => (
+                <TableRow key={v.id} data-ocid={`fe-locations.item.${i + 1}`}>
+                  <TableCell>{v.date}</TableCell>
+                  <TableCell>{v.time}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {v.lat.toFixed(5)}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {v.lng.toFixed(5)}
+                  </TableCell>
+                  <TableCell>{v.purpose}</TableCell>
+                  <TableCell>{v.leadName || "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
@@ -3956,6 +4792,14 @@ export function AdminDashboard() {
           </div>
         );
 
+      case "exams":
+        return <AdminExamsSection />;
+      case "timetable":
+        return <AdminTimetableSection />;
+      case "fee-tracking":
+        return <AdminFeeTrackingSection />;
+      case "fe-locations":
+        return <AdminFELocationsSection />;
       default:
         return null;
     }
