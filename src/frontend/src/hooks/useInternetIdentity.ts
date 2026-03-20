@@ -187,12 +187,15 @@ export function InternetIdentityProvider({
     }
 
     const currentIdentity = authClient.getIdentity();
+    // If the user already has a valid session, reuse it directly instead of
+    // triggering a new II popup (which previously caused the "already authenticated" error).
     if (
       !currentIdentity.getPrincipal().isAnonymous() &&
       currentIdentity instanceof DelegationIdentity &&
       isDelegationValid(currentIdentity.getDelegation())
     ) {
-      setErrorMessage("User is already authenticated");
+      setIdentity(currentIdentity);
+      setStatus("success");
       return;
     }
 
