@@ -62,6 +62,7 @@ import {
   SAMPLE_STUDY_MATERIALS,
   SAMPLE_TIMETABLE,
 } from "../../data/sampleData";
+import { useActor } from "../../hooks/useActor";
 import {
   useGetAllDemoBookings,
   useGetAllStudyMaterials,
@@ -2172,6 +2173,7 @@ function AdminFeeTrackingSection() {
 // ─── Admin FE Locations Section ───────────────────────────────────────────────
 
 function AdminFELocationsSection() {
+  const { actor } = useActor();
   const [liveCheckIns, setLiveCheckIns] = useState<
     Array<{
       id: string;
@@ -2185,18 +2187,59 @@ function AdminFELocationsSection() {
   >([]);
 
   useEffect(() => {
-    const load = () => {
+    const load = async () => {
+      // Load from localStorage first
+      let localData: typeof liveCheckIns = [];
       try {
         const saved = localStorage.getItem("FE_GPS_CHECKINS");
-        setLiveCheckIns(saved ? JSON.parse(saved) : []);
+        localData = saved ? JSON.parse(saved) : [];
       } catch {
-        setLiveCheckIns([]);
+        localData = [];
       }
+      // Merge with backend data
+      if (actor) {
+        try {
+          const backendData = (await (
+            actor as any
+          ).getAllGpsCheckIns()) as Array<{
+            checkInId: bigint;
+            feId: string;
+            feName: string;
+            time: string;
+            date: string;
+            lat: number;
+            lng: number;
+            purpose: string;
+            leadName: string;
+            createdAt: bigint;
+          }>;
+          const backendMapped = backendData.map((c) => ({
+            id: c.checkInId.toString(),
+            time: c.time,
+            lat: Number(c.lat),
+            lng: Number(c.lng),
+            date: c.date,
+            purpose: c.purpose,
+            leadName: c.leadName,
+          }));
+          // Deduplicate: backend takes priority, merge local entries not in backend
+          const backendIds = new Set(backendMapped.map((c) => c.id));
+          const merged = [
+            ...backendMapped,
+            ...localData.filter((c) => !backendIds.has(c.id)),
+          ];
+          setLiveCheckIns(merged);
+          return;
+        } catch {
+          // backend unavailable, fall through to local
+        }
+      }
+      setLiveCheckIns(localData);
     };
     load();
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [actor]);
 
   return (
     <div className="space-y-6">
@@ -2607,12 +2650,42 @@ export function AdminDashboard() {
 
       // ─────────────────────────────────────────────────────────────────────────
       case "enrollment-leads": {
-        const totalLeads = leads.length;
-        const pendingLeads = leads.filter((l) => l.status === "Pending").length;
-        const approvedLeads = leads.filter(
+        // Merge localStorage leads with backend DemoBookings for cross-device sync
+        const backendLeads: EnrollmentLead[] = (demoBookings ?? []).map(
+          (b) => ({
+            leadId: b.bookingId.toString(),
+            studentName: b.studentName,
+            parentName: b.parentName,
+            mobile: b.mobile,
+            classLevel: b.classLevel,
+            courseSelected: b.medium || "—",
+            cityVillage: b.cityVillage,
+            referralCode: "—",
+            feAccountId: "—",
+            status: (b.status === "New"
+              ? "Pending"
+              : b.status === "Approved"
+                ? "Approved"
+                : "Pending") as import("../../utils/referralStore").LeadStatus,
+            paymentStatus: "Unpaid",
+            commissionAmount: 0,
+            commissionPaid: false,
+            createdAt: Number(b.createdAt),
+          }),
+        );
+        const localLeadIds = new Set(leads.map((l) => l.leadId));
+        const mergedLeads: EnrollmentLead[] = [
+          ...leads,
+          ...backendLeads.filter((b) => !localLeadIds.has(b.leadId)),
+        ];
+        const totalLeads = mergedLeads.length;
+        const pendingLeads = mergedLeads.filter(
+          (l) => l.status === "Pending",
+        ).length;
+        const approvedLeads = mergedLeads.filter(
           (l) => l.status === "Approved",
         ).length;
-        const rejectedLeads = leads.filter(
+        const rejectedLeads = mergedLeads.filter(
           (l) => l.status === "Rejected",
         ).length;
 
@@ -2652,7 +2725,7 @@ export function AdminDashboard() {
             </div>
 
             {/* Table */}
-            {leads.length === 0 ? (
+            {mergedLeads.length === 0 ? (
               <div
                 className="rounded-2xl border p-12 text-center bg-white"
                 style={{ borderColor: "oklch(0.93 0.02 255)" }}
@@ -2688,7 +2761,7 @@ export function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {leads.map((lead, idx) => {
+                      {mergedLeads.map((lead, idx) => {
                         const isLocked =
                           lead.status === "Rejected" ||
                           (lead.status === "Approved" &&

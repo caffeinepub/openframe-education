@@ -146,6 +146,19 @@ actor {
     meetingLink : Text;
   };
 
+  type GpsCheckIn = {
+    checkInId : Nat;
+    feId : Text;
+    feName : Text;
+    time : Text;
+    date : Text;
+    lat : Float;
+    lng : Float;
+    purpose : Text;
+    leadName : Text;
+    createdAt : Nat;
+  };
+
   // Storage
   let userProfiles = Map.empty<Principal, UserProfile>();
   let userIdToPrincipal = Map.empty<Nat, Principal>();
@@ -161,6 +174,7 @@ actor {
   let certificates = Map.empty<Nat, Certificate>();
   let referrals = Map.empty<Nat, Referral>();
   let scheduledClasses = Map.empty<Nat, ScheduledClass>();
+  let gpsCheckIns = Map.empty<Nat, GpsCheckIn>();
 
   // Helper functions for role checking
   func getAppRole(caller : Principal) : ?AppRole {
@@ -461,7 +475,7 @@ actor {
       certId = certId;
       studentId = studentId;
       courseName = courseName;
-      issueDate = "2024-01-01"; // Mock date
+      issueDate = "2024-01-01";
       certNumber = "CERT-" # certId.toText();
     };
     certificates.add(certId, cert);
@@ -516,6 +530,15 @@ actor {
     scheduledClasses.remove(classId);
   };
 
+  // GPS Check-Ins - Public (FE can submit without login)
+  public shared ({ caller }) func createGpsCheckIn(checkIn : GpsCheckIn) : async () {
+    gpsCheckIns.add(checkIn.checkInId, checkIn);
+  };
+
+  public query ({ caller }) func getAllGpsCheckIns() : async [GpsCheckIn] {
+    gpsCheckIns.values().toArray();
+  };
+
   // Helper functions
   public query ({ caller }) func getStudentsByParent(parentId : Nat) : async [Student] {
     let result = List.empty<Student>();
@@ -528,12 +551,10 @@ actor {
   };
 
   public query ({ caller }) func getStudentsByTeacher(teacherId : Nat) : async [Student] {
-    // In a real implementation, this would filter by teacher's assigned classes
     students.values().toArray();
   };
 
   public shared ({ caller }) func createRazorpayOrder(studentId : Nat, planId : Nat) : async Text {
-    // Mock implementation
     "order_mock_" # studentId.toText() # "_" # planId.toText();
   };
 
