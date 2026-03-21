@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  BarChart3,
   BookOpen,
   ClipboardCheck,
   Clock,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { TeacherAnalyticsSection } from "../../components/analytics/TeacherAnalyticsSection";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
@@ -66,6 +68,11 @@ const navItems = [
     id: "schedule",
     label: "Class Schedule",
     icon: <Clock className="w-4 h-4" />,
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    icon: <BarChart3 className="w-4 h-4" />,
   },
 ];
 
@@ -895,6 +902,8 @@ export function TeacherDashboard() {
           </div>
         );
 
+      case "analytics":
+        return <TeacherAnalyticsSection />;
       default:
         return null;
     }

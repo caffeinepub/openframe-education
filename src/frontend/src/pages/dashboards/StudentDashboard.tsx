@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import {
   Award,
+  BarChart3,
   Bell,
   BookOpen,
   CheckCircle,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { StudentAnalyticsSection } from "../../components/analytics/StudentAnalyticsSection";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
@@ -51,6 +53,11 @@ const navItems = [
     id: "notifications",
     label: "Notifications",
     icon: <Bell className="w-4 h-4" />,
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    icon: <BarChart3 className="w-4 h-4" />,
   },
 ];
 
@@ -756,6 +763,8 @@ export function StudentDashboard() {
           </div>
         );
 
+      case "analytics":
+        return <StudentAnalyticsSection />;
       default:
         return null;
     }

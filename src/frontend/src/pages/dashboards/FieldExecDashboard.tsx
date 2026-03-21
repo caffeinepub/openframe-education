@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  BarChart3,
   BookOpen,
   CalendarCheck,
   Check,
@@ -42,6 +43,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { FEAnalyticsSection } from "../../components/analytics/FEAnalyticsSection";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
@@ -145,6 +147,11 @@ const navItems = [
     id: "attendance",
     label: "Attendance",
     icon: <CalendarCheck className="w-4 h-4" />,
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    icon: <BarChart3 className="w-4 h-4" />,
   },
 ];
 
@@ -2561,6 +2568,8 @@ export function FieldExecDashboard() {
         return renderDailyTasks();
       case "attendance":
         return renderFeAttendance();
+      case "analytics":
+        return <FEAnalyticsSection />;
       default:
         return renderOverview();
     }

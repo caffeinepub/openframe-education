@@ -1,28 +1,29 @@
-# OpenFrame Education
+# OpenFrame Education -- Analytics Dashboard
 
 ## Current State
-The Field Executive (FE) dashboard stores GPS check-ins in `localStorage["FE_GPS_CHECKINS"]` and enrollment leads in `localStorage["oe_leads"]`. The Admin panel reads from the same localStorage keys. Since localStorage is per-device/browser, data submitted on the FE's device never appears in the Admin panel on a different device.
+The platform has 4 role-based dashboards: AdminDashboard, TeacherDashboard, StudentDashboard, FieldExecDashboard. Each has multiple sections but no chart-based analytics. The shadcn `chart.tsx` component (Recharts wrapper) is already available.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Backend: `GpsCheckIn` type with fields: id (Nat), feId (Text), time (Text), date (Text), lat (Float), lng (Float), purpose (Text), leadName (Text)
-- Backend: `createGpsCheckIn(checkIn: GpsCheckIn)` - public shared, anyone can call
-- Backend: `getAllGpsCheckIns()` - returns all GPS check-ins, admin can view
-- FE Dashboard: "Enroll Student" form that calls `createDemoBooking` on the backend (instead of localStorage)
-- FE Dashboard: GPS Check-In button saves to backend via `createGpsCheckIn` (in addition to localStorage for immediate local display)
+- Analytics section inside AdminDashboard: 6 stat cards + 5 charts (revenue line, enrollment line, teacher performance bar, attendance pie, FE performance bar). Daily/Weekly/Monthly filter. CSV download.
+- Analytics section inside TeacherDashboard: student performance line chart, class attendance bar chart, homework completion pie chart. Filter by class and date range.
+- Analytics section inside StudentDashboard: personal performance growth line chart, subject-wise marks bar chart, attendance donut chart. "Improvement vs Last Month" insight badge.
+- Analytics section inside FieldExecDashboard: daily visits bar chart, leads collected line chart, conversion rate pie chart. Check-in/check-out stats. Location summary table (no map library).
+- Auto-insights text (e.g. "Revenue increased by 25%") derived from sample data comparisons.
+- Low attendance and performance drop alerts/badges where relevant.
 
 ### Modify
-- Admin FE Locations section: read from backend `getAllGpsCheckIns()` instead of localStorage
-- Admin Enrollments section: read from backend `getAllDemoBookings()` instead of localStorage `oe_leads`
-- FE Dashboard: enrollment form saves to backend, not just localStorage
-- FE Dashboard: GPS check-in saves to backend, not just localStorage
+- Each dashboard's existing sidebar/section list to include an "Analytics" entry.
 
 ### Remove
-- Dependency on localStorage for cross-device data sharing (GPS and enrollments)
+- Nothing removed.
 
 ## Implementation Plan
-1. Update `src/backend/main.mo`: Add GpsCheckIn type, storage map, createGpsCheckIn, getAllGpsCheckIns
-2. Update frontend FE dashboard to call backend for GPS check-in and enrollment submission
-3. Update Admin dashboard FE Locations to poll backend getAllGpsCheckIns
-4. Update Admin Enrollments/FE leads to read from backend getAllDemoBookings
+1. Create `src/frontend/src/components/analytics/` with reusable chart components using shadcn chart.tsx (Recharts).
+2. Add Analytics section to AdminDashboard with 5 charts + 6 stat cards + filter + CSV export.
+3. Add Analytics section to TeacherDashboard with 3 charts + class/date filters.
+4. Add Analytics section to StudentDashboard with 3 charts + improvement badge.
+5. Add Analytics section to FieldExecDashboard with 3 charts + location summary table.
+6. All charts use realistic sample/mock data.
+7. Validate (lint + typecheck + build).

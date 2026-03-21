@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { AdminAnalyticsSection } from "../../components/analytics/AdminAnalyticsSection";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
@@ -248,6 +249,11 @@ const navItems = [
     id: "fe-locations",
     label: "FE Locations",
     icon: <MapPin className="w-4 h-4" />,
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    icon: <BarChart3 className="w-4 h-4" />,
   },
 ];
 
@@ -2237,8 +2243,12 @@ function AdminFELocationsSection() {
       setLiveCheckIns(localData);
     };
     load();
-    const interval = setInterval(load, 5000);
-    return () => clearInterval(interval);
+    window.addEventListener("storage", load);
+    const interval = setInterval(load, 3000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", load);
+    };
   }, [actor]);
 
   return (
@@ -4873,6 +4883,8 @@ export function AdminDashboard() {
         return <AdminFeeTrackingSection />;
       case "fe-locations":
         return <AdminFELocationsSection />;
+      case "analytics":
+        return <AdminAnalyticsSection />;
       default:
         return null;
     }
