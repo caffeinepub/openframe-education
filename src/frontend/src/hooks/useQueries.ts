@@ -25,6 +25,7 @@ export function useGetAllDemoBookings() {
       return actor.getAllDemoBookings();
     },
     enabled: !!actor && !isFetching,
+    refetchInterval: 5000,
   });
 }
 

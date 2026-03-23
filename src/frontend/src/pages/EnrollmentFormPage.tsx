@@ -11,6 +11,7 @@ import {
 import { CheckCircle2, GraduationCap, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useCreateDemoBooking } from "../hooks/useQueries";
 import type { EnrollmentLead } from "../utils/referralStore";
 import { COMMISSION_MAP, getFEByCode, saveLead } from "../utils/referralStore";
 
@@ -36,6 +37,7 @@ export function EnrollmentFormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submittedMobile, setSubmittedMobile] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const createDemoBookingMutation = useCreateDemoBooking();
 
   const [form, setForm] = useState({
     studentName: "",
@@ -52,7 +54,7 @@ export function EnrollmentFormPage() {
       setForm((prev) => ({ ...prev, [field]: e.target.value }));
     };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!form.classLevel || !form.courseSelected) {
@@ -84,6 +86,22 @@ export function EnrollmentFormPage() {
       };
 
       saveLead(lead);
+      // Save to backend for cross-device admin visibility
+      try {
+        await createDemoBookingMutation.mutateAsync({
+          bookingId: BigInt(Date.now()),
+          studentName: lead.studentName,
+          parentName: lead.parentName,
+          mobile: lead.mobile,
+          classLevel: lead.classLevel,
+          cityVillage: lead.cityVillage,
+          medium: lead.courseSelected,
+          status: "New",
+          createdAt: BigInt(Date.now()),
+        });
+      } catch {
+        // backend unavailable — localStorage fallback is sufficient
+      }
       setSubmittedMobile(form.mobile.trim());
       setSubmitted(true);
       toast.success("Enrollment request submitted successfully!");

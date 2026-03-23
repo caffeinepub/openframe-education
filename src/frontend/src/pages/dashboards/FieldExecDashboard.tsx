@@ -49,7 +49,10 @@ import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
 import { SAMPLE_FE_VISIT_LOGS } from "../../data/sampleData";
 import { useActor } from "../../hooks/useActor";
-import { useCreateReferral } from "../../hooks/useQueries";
+import {
+  useCreateDemoBooking,
+  useCreateReferral,
+} from "../../hooks/useQueries";
 import type {
   EnrollmentLead,
   FieldExecAccount,
@@ -287,6 +290,7 @@ export function FieldExecDashboard() {
   });
 
   const createReferral = useCreateReferral();
+  const createDemoBookingMutation = useCreateDemoBooking();
   const { actor } = useActor();
 
   // ─── Init FE account & load data ──────────────────────────────────────────
@@ -372,26 +376,22 @@ export function FieldExecDashboard() {
       createdAt: Date.now(),
     };
     saveLead(lead);
-    // Also save to backend for cross-device sync
-    (async () => {
-      try {
-        if (actor) {
-          await actor.createDemoBooking({
-            bookingId: BigInt(Date.now()),
-            studentName: lead.studentName,
-            parentName: lead.parentName,
-            mobile: lead.mobile,
-            classLevel: lead.classLevel,
-            cityVillage: lead.cityVillage,
-            medium: "State",
-            status: "New",
-            createdAt: BigInt(Date.now()),
-          });
-        }
-      } catch {
-        // backend unavailable — localStorage fallback is sufficient
-      }
-    })();
+    // Save to backend for cross-device sync
+    try {
+      await createDemoBookingMutation.mutateAsync({
+        bookingId: BigInt(Date.now()),
+        studentName: lead.studentName,
+        parentName: lead.parentName,
+        mobile: lead.mobile,
+        classLevel: lead.classLevel,
+        cityVillage: lead.cityVillage,
+        medium: "State",
+        status: "New",
+        createdAt: BigInt(Date.now()),
+      });
+    } catch {
+      // backend unavailable — localStorage fallback is sufficient
+    }
     refreshData();
 
     const newReferral: LocalReferral = {
