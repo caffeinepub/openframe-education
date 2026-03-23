@@ -289,6 +289,20 @@ export function FieldExecDashboard() {
   const createReferral = useCreateReferral();
   const { actor } = useActor();
   const pendingBackendSync = useRef<EnrollmentLead[]>([]);
+  const pendingGpsSync = useRef<
+    Array<{
+      checkInId: bigint;
+      feId: string;
+      feName: string;
+      time: string;
+      date: string;
+      lat: number;
+      lng: number;
+      purpose: string;
+      leadName: string;
+      createdAt: bigint;
+    }>
+  >([]);
 
   // ─── Init FE account & load data ──────────────────────────────────────────
   useEffect(() => {
@@ -319,6 +333,23 @@ export function FieldExecDashboard() {
           });
         } catch {
           pendingBackendSync.current.push(pendingLead);
+        }
+      }
+    };
+    flush();
+  }, [actor]);
+
+  // ─── Flush pending GPS check-ins to backend when actor becomes available ───
+  useEffect(() => {
+    if (!actor || pendingGpsSync.current.length === 0) return;
+    const flush = async () => {
+      const pending = [...pendingGpsSync.current];
+      pendingGpsSync.current = [];
+      for (const item of pending) {
+        try {
+          await (actor as any).createGpsCheckIn(item);
+        } catch {
+          pendingGpsSync.current.push(item);
         }
       }
     };
@@ -1968,7 +1999,7 @@ export function FieldExecDashboard() {
   ) => {
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const checkIn = {
           id: `ci${Date.now()}`,
           time: new Date().toLocaleTimeString(),
@@ -1981,27 +2012,27 @@ export function FieldExecDashboard() {
         const updated = [checkIn, ...gpsCheckIns];
         setGpsCheckIns(updated);
         localStorage.setItem("FE_GPS_CHECKINS", JSON.stringify(updated));
-        // Sync to backend for cross-device admin visibility
-        (async () => {
+        const payload = {
+          checkInId: BigInt(Date.now()),
+          feId: "FE1001",
+          feName: "Field Executive",
+          time: checkIn.time,
+          date: checkIn.date,
+          lat: checkIn.lat,
+          lng: checkIn.lng,
+          purpose: checkIn.purpose,
+          leadName: checkIn.leadName,
+          createdAt: BigInt(Date.now()),
+        };
+        if (actor) {
           try {
-            if (actor) {
-              await (actor as any).createGpsCheckIn({
-                checkInId: BigInt(Date.now()),
-                feId: "FE1001",
-                feName: "Field Executive",
-                time: checkIn.time,
-                date: checkIn.date,
-                lat: checkIn.lat,
-                lng: checkIn.lng,
-                purpose: checkIn.purpose,
-                leadName: checkIn.leadName,
-                createdAt: BigInt(Date.now()),
-              });
-            }
+            await (actor as any).createGpsCheckIn(payload);
           } catch {
-            // backend unavailable — localStorage fallback is sufficient
+            pendingGpsSync.current.push(payload);
           }
-        })();
+        } else {
+          pendingGpsSync.current.push(payload);
+        }
         setGpsLoading(false);
         toast.success(`Checked in at ${checkIn.time} – Location captured`);
       },

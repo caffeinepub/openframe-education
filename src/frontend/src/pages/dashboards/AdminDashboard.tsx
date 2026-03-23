@@ -2183,6 +2183,7 @@ function AdminFELocationsSection() {
   const [liveCheckIns, setLiveCheckIns] = useState<
     Array<{
       id: string;
+      feName: string;
       time: string;
       lat: number;
       lng: number;
@@ -2194,60 +2195,41 @@ function AdminFELocationsSection() {
 
   useEffect(() => {
     const load = async () => {
-      // Load from localStorage first
-      let localData: typeof liveCheckIns = [];
+      if (!actor) return;
       try {
-        const saved = localStorage.getItem("FE_GPS_CHECKINS");
-        localData = saved ? JSON.parse(saved) : [];
+        const backendData = (await (
+          actor as any
+        ).getAllGpsCheckIns()) as Array<{
+          checkInId: bigint;
+          feId: string;
+          feName: string;
+          time: string;
+          date: string;
+          lat: number;
+          lng: number;
+          purpose: string;
+          leadName: string;
+          createdAt: bigint;
+        }>;
+        const mapped = backendData.map((c) => ({
+          id: c.checkInId.toString(),
+          feName: c.feName || "Field Executive",
+          time: c.time,
+          lat: Number(c.lat),
+          lng: Number(c.lng),
+          date: c.date,
+          purpose: c.purpose,
+          leadName: c.leadName,
+        }));
+        setLiveCheckIns(mapped);
       } catch {
-        localData = [];
+        // backend unavailable
       }
-      // Merge with backend data
-      if (actor) {
-        try {
-          const backendData = (await (
-            actor as any
-          ).getAllGpsCheckIns()) as Array<{
-            checkInId: bigint;
-            feId: string;
-            feName: string;
-            time: string;
-            date: string;
-            lat: number;
-            lng: number;
-            purpose: string;
-            leadName: string;
-            createdAt: bigint;
-          }>;
-          const backendMapped = backendData.map((c) => ({
-            id: c.checkInId.toString(),
-            time: c.time,
-            lat: Number(c.lat),
-            lng: Number(c.lng),
-            date: c.date,
-            purpose: c.purpose,
-            leadName: c.leadName,
-          }));
-          // Deduplicate: backend takes priority, merge local entries not in backend
-          const backendIds = new Set(backendMapped.map((c) => c.id));
-          const merged = [
-            ...backendMapped,
-            ...localData.filter((c) => !backendIds.has(c.id)),
-          ];
-          setLiveCheckIns(merged);
-          return;
-        } catch {
-          // backend unavailable, fall through to local
-        }
-      }
-      setLiveCheckIns(localData);
     };
     load();
-    window.addEventListener("storage", load);
-    const interval = setInterval(load, 3000);
+    const interval = setInterval(load, 5000);
     return () => {
       clearInterval(interval);
-      window.removeEventListener("storage", load);
     };
   }, [actor]);
 
@@ -2274,6 +2256,7 @@ function AdminFELocationsSection() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Field Executive</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Latitude</TableHead>
@@ -2285,6 +2268,7 @@ function AdminFELocationsSection() {
             <TableBody>
               {liveCheckIns.map((v, i) => (
                 <TableRow key={v.id} data-ocid={`fe-locations.item.${i + 1}`}>
+                  <TableCell>{v.feName}</TableCell>
                   <TableCell>{v.date}</TableCell>
                   <TableCell>{v.time}</TableCell>
                   <TableCell className="font-mono text-xs">
