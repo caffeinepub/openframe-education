@@ -2307,7 +2307,8 @@ function AdminFELocationsSection() {
 
 export function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("overview");
-  const { data: demoBookings } = useGetAllDemoBookings();
+  const { data: demoBookings, refetch: refetchBookings } =
+    useGetAllDemoBookings();
   const { data: studyMaterials } = useGetAllStudyMaterials();
 
   // localStorage-backed state
@@ -2704,6 +2705,15 @@ export function AdminDashboard() {
             <SectionHeader
               title="Student Enrollment Leads"
               description="Students enrolled via referral links or the Enroll Student form"
+              action={
+                <button
+                  type="button"
+                  onClick={() => refetchBookings()}
+                  className="text-xs text-blue-600 underline ml-2 hover:text-blue-800"
+                >
+                  ↻ Refresh
+                </button>
+              }
             />
 
             {/* Stats */}

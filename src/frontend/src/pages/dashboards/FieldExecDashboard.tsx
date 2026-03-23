@@ -41,7 +41,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FEAnalyticsSection } from "../../components/analytics/FEAnalyticsSection";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
@@ -49,10 +49,7 @@ import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
 import { SAMPLE_FE_VISIT_LOGS } from "../../data/sampleData";
 import { useActor } from "../../hooks/useActor";
-import {
-  useCreateDemoBooking,
-  useCreateReferral,
-} from "../../hooks/useQueries";
+import { useCreateReferral } from "../../hooks/useQueries";
 import type {
   EnrollmentLead,
   FieldExecAccount,
@@ -290,8 +287,8 @@ export function FieldExecDashboard() {
   });
 
   const createReferral = useCreateReferral();
-  const createDemoBookingMutation = useCreateDemoBooking();
   const { actor } = useActor();
+  const pendingBackendSync = useRef<EnrollmentLead[]>([]);
 
   // ─── Init FE account & load data ──────────────────────────────────────────
   useEffect(() => {
@@ -300,6 +297,33 @@ export function FieldExecDashboard() {
     refreshData(acc);
     setAllFEAccounts(getFEAccounts());
   }, []);
+
+  // ─── Flush pending enrollments to backend when actor becomes available ─────
+  useEffect(() => {
+    if (!actor || pendingBackendSync.current.length === 0) return;
+    const flush = async () => {
+      const pending = [...pendingBackendSync.current];
+      pendingBackendSync.current = [];
+      for (const pendingLead of pending) {
+        try {
+          await (actor as any).createDemoBooking({
+            bookingId: BigInt(Date.now() + Math.floor(Math.random() * 1000)),
+            studentName: pendingLead.studentName,
+            parentName: pendingLead.parentName,
+            mobile: pendingLead.mobile,
+            classLevel: pendingLead.classLevel,
+            cityVillage: pendingLead.cityVillage,
+            medium: pendingLead.courseSelected || "State",
+            status: "New",
+            createdAt: BigInt(pendingLead.createdAt),
+          });
+        } catch {
+          pendingBackendSync.current.push(pendingLead);
+        }
+      }
+    };
+    flush();
+  }, [actor]);
 
   const refreshData = (acc?: FieldExecAccount) => {
     const currentAcc = acc ?? getFEByCode(REFERRAL_CODE);
@@ -376,21 +400,25 @@ export function FieldExecDashboard() {
       createdAt: Date.now(),
     };
     saveLead(lead);
-    // Save to backend for cross-device sync
-    try {
-      await createDemoBookingMutation.mutateAsync({
-        bookingId: BigInt(Date.now()),
-        studentName: lead.studentName,
-        parentName: lead.parentName,
-        mobile: lead.mobile,
-        classLevel: lead.classLevel,
-        cityVillage: lead.cityVillage,
-        medium: "State",
-        status: "New",
-        createdAt: BigInt(Date.now()),
-      });
-    } catch {
-      // backend unavailable — localStorage fallback is sufficient
+    // Save to backend for cross-device sync — use actor directly with retry fallback
+    if (actor) {
+      try {
+        await (actor as any).createDemoBooking({
+          bookingId: BigInt(Date.now()),
+          studentName: lead.studentName,
+          parentName: lead.parentName,
+          mobile: lead.mobile,
+          classLevel: lead.classLevel,
+          cityVillage: lead.cityVillage,
+          medium: lead.courseSelected || "State",
+          status: "New",
+          createdAt: BigInt(lead.createdAt),
+        });
+      } catch {
+        pendingBackendSync.current.push(lead);
+      }
+    } else {
+      pendingBackendSync.current.push(lead);
     }
     refreshData();
 
