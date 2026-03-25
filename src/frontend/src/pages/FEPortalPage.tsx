@@ -166,8 +166,12 @@ export function FEPortalPage() {
     setLoginError("");
     setIsLoggingIn(true);
 
-    // Check credentials (also check admin-created FEs)
-    const cred = FE_CREDENTIALS[username.toLowerCase()];
+    const usernameLower = username.trim().toLowerCase();
+
+    // Check hardcoded FE credentials (username case-insensitive, password case-sensitive)
+    const cred = FE_CREDENTIALS[usernameLower];
+
+    // Check admin-created FEs: match by username (case-insensitive) OR name (case-insensitive), password case-sensitive
     const adminFEs = lsGet<
       Array<{
         username: string;
@@ -181,7 +185,8 @@ export function FEPortalPage() {
     >("fePortalFEs", []);
     const adminFE = adminFEs.find(
       (fe) =>
-        fe.username === username &&
+        (fe.username.toLowerCase() === usernameLower ||
+          fe.name.toLowerCase() === usernameLower) &&
         fe.password === password &&
         fe.status !== "inactive",
     );
@@ -189,14 +194,17 @@ export function FEPortalPage() {
     setTimeout(() => {
       setIsLoggingIn(false);
       if (cred && cred.password === password) {
-        const newSession: FESession = { username, ...cred.profile };
+        const newSession: FESession = {
+          username: usernameLower,
+          ...cred.profile,
+        };
         lsSet("feSession", newSession);
         setSession(newSession);
         loadEnrollments(newSession.feId);
         toast.success(`Welcome back, ${cred.profile.name}!`);
       } else if (adminFE) {
         const newSession: FESession = {
-          username,
+          username: adminFE.username,
           feId: adminFE.feId,
           name: adminFE.name,
           phone: adminFE.phone,
@@ -207,7 +215,9 @@ export function FEPortalPage() {
         loadEnrollments(newSession.feId);
         toast.success(`Welcome back, ${adminFE.name}!`);
       } else {
-        setLoginError("Invalid username or password. Try fe001 / Field@123");
+        setLoginError(
+          "Invalid username or password. Please check your credentials or contact admin.",
+        );
       }
     }, 600);
   }
