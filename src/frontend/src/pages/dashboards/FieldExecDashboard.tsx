@@ -48,7 +48,10 @@ import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
 import { useActor } from "../../hooks/useActor";
-import { useCreateReferral } from "../../hooks/useQueries";
+import {
+  useCreateDemoBooking,
+  useCreateReferral,
+} from "../../hooks/useQueries";
 import type {
   EnrollmentLead,
   FieldExecAccount,
@@ -286,6 +289,7 @@ export function FieldExecDashboard() {
   });
 
   const createReferral = useCreateReferral();
+  const createDemoBooking = useCreateDemoBooking();
   const { actor } = useActor();
   const pendingBackendSync = useRef<EnrollmentLead[]>([]);
   const pendingGpsSync = useRef<
@@ -319,7 +323,7 @@ export function FieldExecDashboard() {
       pendingBackendSync.current = [];
       for (const pendingLead of pending) {
         try {
-          await (actor as any).createDemoBooking({
+          await actor.createDemoBooking({
             bookingId: BigInt(Date.now() + Math.floor(Math.random() * 1000)),
             studentName: pendingLead.studentName,
             parentName: pendingLead.parentName,
@@ -430,24 +434,21 @@ export function FieldExecDashboard() {
       createdAt: Date.now(),
     };
     saveLead(lead);
-    // Save to backend for cross-device sync — use actor directly with retry fallback
-    if (actor) {
-      try {
-        await (actor as any).createDemoBooking({
-          bookingId: BigInt(Date.now()),
-          studentName: lead.studentName,
-          parentName: lead.parentName,
-          mobile: lead.mobile,
-          classLevel: lead.classLevel,
-          cityVillage: lead.cityVillage,
-          medium: lead.courseSelected || "State",
-          status: "New",
-          createdAt: BigInt(lead.createdAt),
-        });
-      } catch {
-        pendingBackendSync.current.push(lead);
-      }
-    } else {
+    // Save to backend for cross-device sync using proper mutation hook
+    try {
+      await createDemoBooking.mutateAsync({
+        bookingId: BigInt(Date.now()),
+        studentName: lead.studentName,
+        parentName: lead.parentName,
+        mobile: lead.mobile,
+        classLevel: lead.classLevel,
+        cityVillage: lead.cityVillage,
+        medium: lead.courseSelected || "State",
+        status: "New",
+        createdAt: BigInt(lead.createdAt),
+      });
+    } catch {
+      // Queue for retry when actor becomes available
       pendingBackendSync.current.push(lead);
     }
     refreshData();

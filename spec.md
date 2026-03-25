@@ -1,29 +1,33 @@
-# OpenFrame Education -- Analytics Dashboard
+# OpenFrame Education - FE Enrollment & Admin Management System
 
 ## Current State
-The platform has 4 role-based dashboards: AdminDashboard, TeacherDashboard, StudentDashboard, FieldExecDashboard. Each has multiple sections but no chart-based analytics. The shadcn `chart.tsx` component (Recharts wrapper) is already available.
+The platform already has a FieldExecDashboard at `/dashboard/field-exec` with GPS check-in, enrollment form, leaderboard, and daily tasks. The AdminDashboard at `/dashboard/admin` has an Enrollment Leads section and FE Locations section. The backend has `DemoBooking`, `GpsCheckIn`, and `UserProfile` models.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Analytics section inside AdminDashboard: 6 stat cards + 5 charts (revenue line, enrollment line, teacher performance bar, attendance pie, FE performance bar). Daily/Weekly/Monthly filter. CSV download.
-- Analytics section inside TeacherDashboard: student performance line chart, class attendance bar chart, homework completion pie chart. Filter by class and date range.
-- Analytics section inside StudentDashboard: personal performance growth line chart, subject-wise marks bar chart, attendance donut chart. "Improvement vs Last Month" insight badge.
-- Analytics section inside FieldExecDashboard: daily visits bar chart, leads collected line chart, conversion rate pie chart. Check-in/check-out stats. Location summary table (no map library).
-- Auto-insights text (e.g. "Revenue increased by 25%") derived from sample data comparisons.
-- Low attendance and performance drop alerts/badges where relevant.
+- `FieldExecutive` record type in backend (id, name, phone, location, status, createdAt)
+- `FEEnrollment` record type in backend (id, studentName, studentPhone, classLevel, courseType, feId, feName, createdAt)
+- Backend functions: createFieldExecutive, getAllFieldExecutives, updateFieldExecutive, createFEEnrollment, getAllFEEnrollments, getFEEnrollmentsByFE
+- FE Portal login page at `/fe-portal` with username/password (stored in localStorage, persisted on refresh)
+- New FE Portal dashboard showing: total enrollments, daily target progress bar (100 enrollments/day)
+- Enrollment form inside FE Portal: Student Name, Phone, Class (Nursery/LKG/UKG/1-12), Course Type (Tuition/Olympiad/MCQ), auto-attaches FE ID
+- Admin panel new section: "FE Management" with FE list (Name | Phone | Location | Total Enrollments | Status), activate/deactivate button
+- Admin panel new section: "FE Enrollments" with full table (Student Name | Phone | Class | Course | FE Name | Date), search/filter by student name, phone, date, FE
+- Leaderboard in Admin panel: top FEs by enrollment count
+- Export to CSV/Excel button in Admin FE Enrollments section
 
 ### Modify
-- Each dashboard's existing sidebar/section list to include an "Analytics" entry.
+- Admin Dashboard: add FE enrollment stats cards (Total FE Enrollments Today, Total Active FEs)
+- FieldExecDashboard: keep existing features but add link to new `/fe-portal` for the new dedicated system
 
 ### Remove
-- Nothing removed.
+- Nothing removed
 
 ## Implementation Plan
-1. Create `src/frontend/src/components/analytics/` with reusable chart components using shadcn chart.tsx (Recharts).
-2. Add Analytics section to AdminDashboard with 5 charts + 6 stat cards + filter + CSV export.
-3. Add Analytics section to TeacherDashboard with 3 charts + class/date filters.
-4. Add Analytics section to StudentDashboard with 3 charts + improvement badge.
-5. Add Analytics section to FieldExecDashboard with 3 charts + location summary table.
-6. All charts use realistic sample/mock data.
-7. Validate (lint + typecheck + build).
+1. Add FieldExecutive and FEEnrollment types + CRUD functions to backend main.mo
+2. Build `/fe-portal` page with login (localStorage session), dashboard stats, enrollment form
+3. Add "FE Management" and "FE Enrollments" sections to AdminDashboard
+4. Wire all data through backend actor hooks
+5. Add export CSV logic on the admin enrollments table
+6. Add route `/fe-portal` in App.tsx

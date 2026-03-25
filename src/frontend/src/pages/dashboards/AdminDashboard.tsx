@@ -1,4 +1,6 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -35,6 +37,7 @@ import {
   Phone,
   PlusCircle,
   School,
+  Search,
   Share2,
   Trash2,
   TrendingUp,
@@ -43,7 +46,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AdminAnalyticsSection } from "../../components/analytics/AdminAnalyticsSection";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
@@ -249,6 +252,16 @@ const navItems = [
     id: "fe-locations",
     label: "FE Locations",
     icon: <MapPin className="w-4 h-4" />,
+  },
+  {
+    id: "fe-portal-fes",
+    label: "FE Portal FEs",
+    icon: <Users2 className="w-4 h-4" />,
+  },
+  {
+    id: "fe-portal-enrollments",
+    label: "FE Enrollments",
+    icon: <ClipboardList className="w-4 h-4" />,
   },
   {
     id: "analytics",
@@ -2379,10 +2392,7 @@ export function AdminDashboard() {
   const [editUPI, setEditUPI] = useState("");
   const [editActive, setEditActive] = useState(true);
 
-  const bookings =
-    demoBookings && demoBookings.length > 0
-      ? demoBookings
-      : SAMPLE_DEMO_BOOKINGS;
+  const bookings = demoBookings ?? [];
   const materials =
     studyMaterials && studyMaterials.length > 0
       ? studyMaterials
@@ -4942,6 +4952,10 @@ export function AdminDashboard() {
         return <AdminFeeTrackingSection />;
       case "fe-locations":
         return <AdminFELocationsSection />;
+      case "fe-portal-fes":
+        return <AdminFEPortalFEsSection />;
+      case "fe-portal-enrollments":
+        return <AdminFEPortalEnrollmentsSection />;
       case "analytics":
         return <AdminAnalyticsSection />;
       default:
@@ -4960,5 +4974,544 @@ export function AdminDashboard() {
     >
       {renderContent()}
     </DashboardLayout>
+  );
+}
+
+// ─── FE Portal Admin Sections ──────────────────────────────────────────────
+
+interface FEPortalEnrollment {
+  id: string;
+  studentName: string;
+  studentPhone: string;
+  classLevel: string;
+  courseType: string;
+  feId: string;
+  feName: string;
+  createdAt: string;
+}
+
+interface FEPortalFE {
+  feId: string;
+  username: string;
+  password: string;
+  name: string;
+  phone: string;
+  location: string;
+  status: string;
+  createdAt: string;
+}
+
+function lsGetAdmin<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function lsSetAdmin(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+function AdminFEPortalFEsSection() {
+  const [fes, setFEs] = React.useState<FEPortalFE[]>(() =>
+    lsGetAdmin<FEPortalFE[]>("fePortalFEs", []),
+  );
+  const [showAddForm, setShowAddForm] = React.useState(false);
+  const [form, setForm] = React.useState({
+    name: "",
+    phone: "",
+    location: "",
+    username: "",
+    password: "",
+  });
+
+  const allEnrollments = lsGetAdmin<FEPortalEnrollment[]>("feEnrollments", []);
+
+  function getEnrollmentCount(feId: string) {
+    return allEnrollments.filter((e) => e.feId === feId).length;
+  }
+
+  function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name || !form.username || !form.password) return;
+    const newFE: FEPortalFE = {
+      feId: form.username.toLowerCase(),
+      username: form.username.toLowerCase(),
+      password: form.password,
+      name: form.name,
+      phone: form.phone,
+      location: form.location,
+      status: "active",
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...fes, newFE];
+    lsSetAdmin("fePortalFEs", updated);
+    setFEs(updated);
+    setForm({ name: "", phone: "", location: "", username: "", password: "" });
+    setShowAddForm(false);
+  }
+
+  function toggleStatus(feId: string) {
+    const updated = fes.map((fe) =>
+      fe.feId === feId
+        ? { ...fe, status: fe.status === "active" ? "inactive" : "active" }
+        : fe,
+    );
+    lsSetAdmin("fePortalFEs", updated);
+    setFEs(updated);
+  }
+
+  function handleDelete(feId: string) {
+    const updated = fes.filter((fe) => fe.feId !== feId);
+    lsSetAdmin("fePortalFEs", updated);
+    setFEs(updated);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <SectionHeader
+          title="FE Portal – Field Executives"
+          description="Manage field executives who use the FE Portal"
+        />
+        <Button
+          onClick={() => setShowAddForm((p) => !p)}
+          className="gap-2 text-white font-semibold shrink-0"
+          style={{ background: "oklch(0.45 0.18 262)" }}
+          data-ocid="fe_portal_admin.add.open_modal_button"
+        >
+          <PlusCircle className="w-4 h-4" />
+          Add FE
+        </Button>
+      </div>
+
+      {showAddForm && (
+        <form
+          onSubmit={handleAdd}
+          className="bg-white rounded-2xl border p-6 shadow-sm space-y-4 max-w-lg"
+          data-ocid="fe_portal_admin.add.panel"
+        >
+          <h3 className="font-bold text-foreground">Add Field Executive</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Name *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
+                placeholder="Full name"
+                className="rounded-xl"
+                data-ocid="fe_portal_admin.name.input"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Phone</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, phone: e.target.value }))
+                }
+                placeholder="+91 XXXXX XXXXX"
+                type="tel"
+                className="rounded-xl"
+                data-ocid="fe_portal_admin.phone.input"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Location</Label>
+            <Input
+              value={form.location}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, location: e.target.value }))
+              }
+              placeholder="City / Village"
+              className="rounded-xl"
+              data-ocid="fe_portal_admin.location.input"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Username *</Label>
+              <Input
+                value={form.username}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, username: e.target.value }))
+                }
+                placeholder="e.g. fe003"
+                className="rounded-xl"
+                data-ocid="fe_portal_admin.username.input"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Password *</Label>
+              <Input
+                type="password"
+                value={form.password}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, password: e.target.value }))
+                }
+                placeholder="Set password"
+                className="rounded-xl"
+                data-ocid="fe_portal_admin.password.input"
+              />
+            </div>
+          </div>
+          <Button
+            type="submit"
+            className="w-full text-white font-semibold gap-2"
+            style={{ background: "oklch(0.45 0.18 262)" }}
+            data-ocid="fe_portal_admin.add.submit_button"
+          >
+            <PlusCircle className="w-4 h-4" />
+            Add Field Executive
+          </Button>
+        </form>
+      )}
+
+      {fes.length === 0 ? (
+        <div
+          className="rounded-2xl border p-12 text-center bg-white"
+          data-ocid="fe_portal_admin.fe.empty_state"
+        >
+          <p className="text-sm text-foreground/60">
+            No FE Portal executives yet. Add one above.
+          </p>
+        </div>
+      ) : (
+        <div
+          className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+          data-ocid="fe_portal_admin.fe.table"
+        >
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Enrollments</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fes.map((fe, idx) => (
+                  <TableRow
+                    key={fe.feId}
+                    data-ocid={`fe_portal_admin.fe.item.${idx + 1}`}
+                  >
+                    <TableCell className="font-medium">{fe.name}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {fe.username}
+                    </TableCell>
+                    <TableCell className="text-sm">{fe.phone || "—"}</TableCell>
+                    <TableCell className="text-sm">
+                      {fe.location || "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {getEnrollmentCount(fe.feId)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          fe.status === "active"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }
+                      >
+                        {fe.status === "active" ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={fe.status === "active"}
+                          onCheckedChange={() => toggleStatus(fe.feId)}
+                          data-ocid={`fe_portal_admin.fe.toggle.${idx + 1}`}
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(fe.feId)}
+                          data-ocid={`fe_portal_admin.fe.delete_button.${idx + 1}`}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminFEPortalEnrollmentsSection() {
+  const [enrollments, setEnrollments] = React.useState<FEPortalEnrollment[]>(
+    [],
+  );
+  const [search, setSearch] = React.useState("");
+  const [filterFE, setFilterFE] = React.useState("all");
+  const [filterDate, setFilterDate] = React.useState("");
+
+  React.useEffect(() => {
+    function load() {
+      setEnrollments(lsGetAdmin<FEPortalEnrollment[]>("feEnrollments", []));
+    }
+    load();
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fes = lsGetAdmin<FEPortalFE[]>("fePortalFEs", []);
+  const allFENames = Array.from(new Set(enrollments.map((e) => e.feName)));
+
+  const filtered = enrollments.filter((e) => {
+    const matchSearch =
+      e.studentName.toLowerCase().includes(search.toLowerCase()) ||
+      e.studentPhone.includes(search);
+    const matchFE =
+      filterFE === "all" || e.feId === filterFE || e.feName === filterFE;
+    const matchDate = !filterDate || e.createdAt.startsWith(filterDate);
+    return matchSearch && matchFE && matchDate;
+  });
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayCount = enrollments.filter((e) =>
+    e.createdAt.startsWith(todayStr),
+  ).length;
+  const activeFECount = fes.filter((fe) => fe.status === "active").length + 2; // +2 for sample FEs
+
+  // Leaderboard
+  const feCounts: Record<string, { name: string; count: number }> = {};
+  for (const e of enrollments) {
+    if (!feCounts[e.feId]) feCounts[e.feId] = { name: e.feName, count: 0 };
+    feCounts[e.feId].count++;
+  }
+  const leaderboard = Object.entries(feCounts)
+    .map(([feId, data]) => ({ feId, ...data }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  function exportCSV() {
+    const headers = [
+      "Student Name",
+      "Phone",
+      "Class",
+      "Course",
+      "Field Executive",
+      "Date",
+    ];
+    const rows = filtered.map((e) => [
+      e.studentName,
+      e.studentPhone,
+      e.classLevel,
+      e.courseType,
+      e.feName,
+      new Date(e.createdAt).toLocaleDateString("en-IN"),
+    ]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((c) => `"${c}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fe-enrollments-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const rankBadgeColors = [
+    "oklch(0.78 0.16 80)",
+    "oklch(0.75 0.03 255)",
+    "oklch(0.65 0.12 60)",
+  ];
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        title="FE Portal – Enrollments"
+        description="All student enrollments submitted by field executives"
+      />
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-2xl font-bold">{enrollments.length}</p>
+            <p className="text-xs text-foreground/60">Total FE Enrollments</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-2xl font-bold">{todayCount}</p>
+            <p className="text-xs text-foreground/60">Today's Enrollments</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-2xl font-bold">{activeFECount}</p>
+            <p className="text-xs text-foreground/60">Total Active FEs</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Leaderboard */}
+      {leaderboard.length > 0 && (
+        <Card className="rounded-2xl border-0 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              🏆 Top FE Leaderboard
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {leaderboard.map((fe, idx) => (
+                <div
+                  key={fe.feId}
+                  className="flex items-center gap-3"
+                  data-ocid={`fe_portal_admin.leaderboard.item.${idx + 1}`}
+                >
+                  <span
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                    style={{
+                      background:
+                        rankBadgeColors[idx] || "oklch(0.65 0.05 255)",
+                    }}
+                  >
+                    {idx + 1}
+                  </span>
+                  <span className="flex-1 text-sm font-medium">{fe.name}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {fe.count} enrollments
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+          <Input
+            placeholder="Search by name or phone..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 rounded-xl w-56"
+            data-ocid="fe_portal_admin.search.input"
+          />
+        </div>
+        <select
+          value={filterFE}
+          onChange={(e) => setFilterFE(e.target.value)}
+          className="rounded-xl border border-border px-3 py-2 text-sm bg-white"
+          data-ocid="fe_portal_admin.fe_filter.select"
+        >
+          <option value="all">All FEs</option>
+          {allFENames.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+        <Input
+          type="date"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+          className="rounded-xl w-44"
+          data-ocid="fe_portal_admin.date_filter.input"
+        />
+        <Button
+          variant="outline"
+          onClick={exportCSV}
+          className="gap-2 ml-auto"
+          data-ocid="fe_portal_admin.export.button"
+        >
+          ⬇ Export CSV
+        </Button>
+      </div>
+
+      {/* Table */}
+      <div
+        className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+        data-ocid="fe_portal_admin.enrollments.table"
+      >
+        {filtered.length === 0 ? (
+          <div
+            className="p-10 text-center"
+            data-ocid="fe_portal_admin.enrollments.empty_state"
+          >
+            <p className="text-sm text-foreground/60">No enrollments found.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Student Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Course</TableHead>
+                  <TableHead>Field Executive</TableHead>
+                  <TableHead>Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((e, idx) => (
+                  <TableRow
+                    key={e.id}
+                    data-ocid={`fe_portal_admin.enrollment.item.${idx + 1}`}
+                  >
+                    <TableCell className="text-xs text-foreground/50">
+                      {idx + 1}
+                    </TableCell>
+                    <TableCell className="font-medium text-sm">
+                      {e.studentName}
+                    </TableCell>
+                    <TableCell className="text-sm">{e.studentPhone}</TableCell>
+                    <TableCell className="text-sm text-foreground/70">
+                      {e.classLevel}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        {e.courseType}
+                      </Badge>
+                    </TableCell>
+                    <TableCell
+                      className="text-sm font-medium"
+                      style={{ color: "oklch(0.45 0.18 262)" }}
+                    >
+                      {e.feName}
+                    </TableCell>
+                    <TableCell className="text-xs text-foreground/60">
+                      {new Date(e.createdAt).toLocaleDateString("en-IN")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

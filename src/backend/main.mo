@@ -159,6 +159,26 @@ actor {
     createdAt : Nat;
   };
 
+  type FieldExecutive = {
+    id : Nat;
+    name : Text;
+    phone : Text;
+    location : Text;
+    status : Text;
+    createdAt : Nat;
+  };
+
+  type FEEnrollment = {
+    id : Nat;
+    studentName : Text;
+    studentPhone : Text;
+    classLevel : Text;
+    courseType : Text;
+    feId : Nat;
+    feName : Text;
+    createdAt : Nat;
+  };
+
   // Storage
   let userProfiles = Map.empty<Principal, UserProfile>();
   let userIdToPrincipal = Map.empty<Nat, Principal>();
@@ -175,6 +195,8 @@ actor {
   let referrals = Map.empty<Nat, Referral>();
   let scheduledClasses = Map.empty<Nat, ScheduledClass>();
   let gpsCheckIns = Map.empty<Nat, GpsCheckIn>();
+  let fieldExecutives = Map.empty<Nat, FieldExecutive>();
+  let feEnrollments = Map.empty<Nat, FEEnrollment>();
 
   // Helper functions for role checking
   func getAppRole(caller : Principal) : ?AppRole {
@@ -296,7 +318,6 @@ actor {
 
   // DemoBookings CRUD - Public can create, admin can manage
   public shared ({ caller }) func createDemoBooking(booking : DemoBooking) : async () {
-    // Anyone including guests can create demo bookings
     demoBookings.add(booking.bookingId, booking);
   };
 
@@ -537,6 +558,52 @@ actor {
 
   public query ({ caller }) func getAllGpsCheckIns() : async [GpsCheckIn] {
     gpsCheckIns.values().toArray();
+  };
+
+  // FieldExecutives CRUD
+  public shared ({ caller }) func createFieldExecutive(fe : FieldExecutive) : async () {
+    fieldExecutives.add(fe.id, fe);
+  };
+
+  public query ({ caller }) func getAllFieldExecutives() : async [FieldExecutive] {
+    fieldExecutives.values().toArray();
+  };
+
+  public shared ({ caller }) func updateFieldExecutiveStatus(feId : Nat, status : Text) : async Bool {
+    switch (fieldExecutives.get(feId)) {
+      case (?fe) {
+        let updated = {
+          id = fe.id;
+          name = fe.name;
+          phone = fe.phone;
+          location = fe.location;
+          status = status;
+          createdAt = fe.createdAt;
+        };
+        fieldExecutives.add(feId, updated);
+        true;
+      };
+      case (null) { false };
+    };
+  };
+
+  // FEEnrollments CRUD - Public so FE can submit without auth
+  public shared ({ caller }) func createFEEnrollment(enrollment : FEEnrollment) : async () {
+    feEnrollments.add(enrollment.id, enrollment);
+  };
+
+  public query ({ caller }) func getAllFEEnrollments() : async [FEEnrollment] {
+    feEnrollments.values().toArray();
+  };
+
+  public query ({ caller }) func getFEEnrollmentsByFE(feId : Nat) : async [FEEnrollment] {
+    let result = List.empty<FEEnrollment>();
+    for ((_, enrollment) in feEnrollments.entries()) {
+      if (enrollment.feId == feId) {
+        result.add(enrollment);
+      };
+    };
+    result.values().toArray();
   };
 
   // Helper functions

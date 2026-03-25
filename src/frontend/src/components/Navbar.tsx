@@ -1,6 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { BookOpen, GraduationCap, Menu, UserCheck, X } from "lucide-react";
+import {
+  BookOpen,
+  Briefcase,
+  GraduationCap,
+  Menu,
+  UserCheck,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
@@ -88,6 +95,18 @@ export function Navbar() {
             >
               <UserCheck className="w-3.5 h-3.5" />
               Teacher Login
+            </Link>
+            <Link
+              to="/fe-portal"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ml-1"
+              style={{
+                background: "oklch(0.94 0.06 145)",
+                color: "oklch(0.38 0.16 145)",
+              }}
+              data-ocid="nav.fe_portal.link"
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              FE Portal
             </Link>
           </div>
 
@@ -181,6 +200,19 @@ export function Navbar() {
               >
                 <UserCheck className="w-4 h-4" />
                 Teacher Login
+              </Link>
+              <Link
+                to="/fe-portal"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg"
+                style={{
+                  background: "oklch(0.94 0.06 145)",
+                  color: "oklch(0.38 0.16 145)",
+                }}
+                data-ocid="nav.fe_portal.mobile.link"
+              >
+                <Briefcase className="w-4 h-4" />
+                FE Portal
               </Link>
               <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-border">
                 <Button
