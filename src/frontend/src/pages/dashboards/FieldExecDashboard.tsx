@@ -47,7 +47,6 @@ import { FEAnalyticsSection } from "../../components/analytics/FEAnalyticsSectio
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
-import { SAMPLE_FE_VISIT_LOGS } from "../../data/sampleData";
 import { useActor } from "../../hooks/useActor";
 import { useCreateReferral } from "../../hooks/useQueries";
 import type {
@@ -2203,48 +2202,63 @@ export function FieldExecDashboard() {
         </div>
       )}
 
-      {/* Visit History from sample data */}
+      {/* Visit History from real check-ins */}
       <div>
         <h3 className="font-semibold text-foreground mb-3">Visit History</h3>
-        <div
-          className="bg-white rounded-2xl border shadow-sm overflow-hidden"
-          style={{ borderColor: "oklch(0.93 0.02 255)" }}
-        >
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/30">
-                <th className="text-left py-3 px-4 text-xs font-semibold">
-                  Date
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold">
-                  Time
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold">
-                  Location
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold">
-                  Purpose
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {SAMPLE_FE_VISIT_LOGS.map((v, i) => (
-                <tr
-                  key={v.id}
-                  className="border-b last:border-0 hover:bg-muted/20"
-                  data-ocid={`visit-log.row.${i + 1}`}
-                >
-                  <td className="py-3 px-4 text-xs">{v.date}</td>
-                  <td className="py-3 px-4 text-xs">{v.time}</td>
-                  <td className="py-3 px-4 text-xs">
-                    {v.latitude.toFixed(4)}, {v.longitude.toFixed(4)}
-                  </td>
-                  <td className="py-3 px-4 text-xs">{v.purpose}</td>
+        {gpsCheckIns.length === 0 ? (
+          <div
+            className="bg-white rounded-2xl border p-6 text-center text-muted-foreground"
+            data-ocid="visit-log.empty_state"
+          >
+            <p className="text-sm">
+              No check-ins yet. Tap Check In to record your first visit.
+            </p>
+          </div>
+        ) : (
+          <div
+            className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+            style={{ borderColor: "oklch(0.93 0.02 255)" }}
+          >
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30">
+                  <th className="text-left py-3 px-4 text-xs font-semibold">
+                    Date
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold">
+                    Time
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold">
+                    Location
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold">
+                    Purpose
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold">
+                    Lead
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {gpsCheckIns.map((c, i) => (
+                  <tr
+                    key={c.id}
+                    className="border-b last:border-0 hover:bg-muted/20"
+                    data-ocid={`visit-log.row.${i + 1}`}
+                  >
+                    <td className="py-3 px-4 text-xs">{c.date}</td>
+                    <td className="py-3 px-4 text-xs">{c.time}</td>
+                    <td className="py-3 px-4 text-xs font-mono">
+                      {c.lat.toFixed(4)}, {c.lng.toFixed(4)}
+                    </td>
+                    <td className="py-3 px-4 text-xs">{c.purpose}</td>
+                    <td className="py-3 px-4 text-xs">{c.leadName || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

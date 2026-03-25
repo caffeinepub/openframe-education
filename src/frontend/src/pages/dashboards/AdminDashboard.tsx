@@ -2221,9 +2221,74 @@ function AdminFELocationsSection() {
           purpose: c.purpose,
           leadName: c.leadName,
         }));
-        setLiveCheckIns(mapped);
+        // Also read from localStorage as fallback and merge
+        const localRaw = localStorage.getItem("FE_GPS_CHECKINS");
+        let localMapped: typeof mapped = [];
+        if (localRaw) {
+          try {
+            const localData = JSON.parse(localRaw) as Array<{
+              id?: string;
+              checkInId?: string;
+              feName?: string;
+              time: string;
+              date: string;
+              lat: number;
+              lng: number;
+              purpose: string;
+              leadName?: string;
+            }>;
+            localMapped = localData.map((c) => ({
+              id: c.id || c.checkInId || `local-${c.time}-${c.date}`,
+              feName: c.feName || "Field Executive",
+              time: c.time,
+              lat: Number(c.lat),
+              lng: Number(c.lng),
+              date: c.date,
+              purpose: c.purpose,
+              leadName: c.leadName || "",
+            }));
+          } catch {
+            // ignore parse errors
+          }
+        }
+        // Merge and deduplicate by id
+        const backendIds = new Set(mapped.map((m) => m.id));
+        const merged = [
+          ...mapped,
+          ...localMapped.filter((l) => !backendIds.has(l.id)),
+        ];
+        setLiveCheckIns(merged);
       } catch {
-        // backend unavailable
+        // backend unavailable — fall back to localStorage only
+        const localRaw = localStorage.getItem("FE_GPS_CHECKINS");
+        if (localRaw) {
+          try {
+            const localData = JSON.parse(localRaw) as Array<{
+              id?: string;
+              checkInId?: string;
+              feName?: string;
+              time: string;
+              date: string;
+              lat: number;
+              lng: number;
+              purpose: string;
+              leadName?: string;
+            }>;
+            const localMapped = localData.map((c) => ({
+              id: c.id || c.checkInId || `local-${c.time}-${c.date}`,
+              feName: c.feName || "Field Executive",
+              time: c.time,
+              lat: Number(c.lat),
+              lng: Number(c.lng),
+              date: c.date,
+              purpose: c.purpose,
+              leadName: c.leadName || "",
+            }));
+            setLiveCheckIns(localMapped);
+          } catch {
+            // ignore
+          }
+        }
       }
     };
     load();
@@ -2247,8 +2312,8 @@ function AdminFELocationsSection() {
           <MapPin className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p className="font-medium">No GPS check-ins yet</p>
           <p className="text-sm mt-1">
-            Check-ins submitted by field executives will appear here in real
-            time.
+            No GPS check-ins yet. Check-ins from the Field Executive panel will
+            appear here automatically.
           </p>
         </div>
       ) : (
