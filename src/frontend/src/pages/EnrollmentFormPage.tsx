@@ -269,7 +269,7 @@ export function EnrollmentFormPage() {
                 >
                   <SelectValue placeholder="Select class level" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   {CLASS_LEVELS.map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
@@ -296,7 +296,7 @@ export function EnrollmentFormPage() {
                 >
                   <SelectValue placeholder="Select a plan" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   {COURSE_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
