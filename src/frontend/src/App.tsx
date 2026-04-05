@@ -9,7 +9,6 @@ import {
 import { BlogDetailPage } from "./pages/BlogDetailPage";
 import { BlogPage } from "./pages/BlogPage";
 import { EnrollmentFormPage } from "./pages/EnrollmentFormPage";
-import { FEPortalPage } from "./pages/FEPortalPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PragatiPage } from "./pages/PragatiPage";
@@ -97,12 +96,6 @@ const blogDetailRoute = createRoute({
   component: BlogDetailPage,
 });
 
-const fePortalRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/fe-portal",
-  component: FEPortalPage,
-});
-
 const teacherManagementRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/teacher-dashboard",
@@ -123,7 +116,6 @@ const routeTree = rootRoute.addChildren([
   blogRoute,
   blogDetailRoute,
   teacherManagementRoute,
-  fePortalRoute,
 ]);
 
 // Router

@@ -97,7 +97,7 @@ export function Navbar() {
               Teacher Login
             </Link>
             <Link
-              to="/fe-portal"
+              to="/dashboard/field-exec"
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ml-1"
               style={{
                 background: "oklch(0.94 0.06 145)",
@@ -202,7 +202,7 @@ export function Navbar() {
                 Teacher Login
               </Link>
               <Link
-                to="/fe-portal"
+                to="/dashboard/field-exec"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg"
                 style={{
