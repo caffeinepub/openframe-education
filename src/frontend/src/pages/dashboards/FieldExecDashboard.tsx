@@ -330,7 +330,7 @@ export function FieldExecDashboard() {
             mobile: pendingLead.mobile,
             classLevel: pendingLead.classLevel,
             cityVillage: pendingLead.cityVillage,
-            medium: pendingLead.courseSelected || "State",
+            medium: `${pendingLead.courseSelected || "State"}||${pendingLead.feAccountId}`,
             status: "New",
             createdAt: BigInt(pendingLead.createdAt),
           });
@@ -443,7 +443,7 @@ export function FieldExecDashboard() {
         mobile: lead.mobile,
         classLevel: lead.classLevel,
         cityVillage: lead.cityVillage,
-        medium: lead.courseSelected || "State",
+        medium: `${lead.courseSelected || "State"}||${lead.feAccountId}`,
         status: "New",
         createdAt: BigInt(lead.createdAt),
       });

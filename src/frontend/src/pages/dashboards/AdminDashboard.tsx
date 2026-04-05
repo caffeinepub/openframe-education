@@ -2363,6 +2363,14 @@ export function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("overview");
   const { data: demoBookings, refetch: refetchBookings } =
     useGetAllDemoBookings();
+
+  // ─── Auto-refresh enrollment leads from backend every 5 seconds ─────────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchBookings();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [refetchBookings]);
   const { data: studyMaterials } = useGetAllStudyMaterials();
 
   // localStorage-backed state
@@ -2713,17 +2721,21 @@ export function AdminDashboard() {
       // ─────────────────────────────────────────────────────────────────────────
       case "enrollment-leads": {
         // Merge localStorage leads with backend DemoBookings for cross-device sync
-        const backendLeads: EnrollmentLead[] = (demoBookings ?? []).map(
-          (b) => ({
+        const backendLeads: EnrollmentLead[] = (demoBookings ?? []).map((b) => {
+          // medium field encodes "course||feAccountId" when submitted from FE dashboard
+          const mediumParts = (b.medium || "").split("||");
+          const course = mediumParts[0] || "—";
+          const feId = mediumParts[1] || "—";
+          return {
             leadId: b.bookingId.toString(),
             studentName: b.studentName,
             parentName: b.parentName,
             mobile: b.mobile,
             classLevel: b.classLevel,
-            courseSelected: b.medium || "—",
+            courseSelected: course,
             cityVillage: b.cityVillage,
             referralCode: "—",
-            feAccountId: "—",
+            feAccountId: feId,
             status: (b.status === "New"
               ? "Pending"
               : b.status === "Approved"
@@ -2733,8 +2745,8 @@ export function AdminDashboard() {
             commissionAmount: 0,
             commissionPaid: false,
             createdAt: Number(b.createdAt),
-          }),
-        );
+          };
+        });
         const localLeadIds = new Set(leads.map((l) => l.leadId));
         const mergedLeads: EnrollmentLead[] = [
           ...leads,
