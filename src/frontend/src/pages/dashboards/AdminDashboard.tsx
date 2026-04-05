@@ -5251,7 +5251,6 @@ function AdminFEPortalFEsSection() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Username</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Enrollments</TableHead>
@@ -5266,9 +5265,6 @@ function AdminFEPortalFEsSection() {
                     data-ocid={`fe_portal_admin.fe.item.${idx + 1}`}
                   >
                     <TableCell className="font-medium">{fe.name}</TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {fe.username}
-                    </TableCell>
                     <TableCell className="text-sm">{fe.phone || "—"}</TableCell>
                     <TableCell className="text-sm">
                       {fe.location || "—"}
@@ -5710,7 +5706,6 @@ function AdminFEIdentitySection() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Username</TableHead>
                     <TableHead>Primary Device</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -5723,9 +5718,6 @@ function AdminFEIdentitySection() {
                       data-ocid={`fe_identity.row.item.${idx + 1}`}
                     >
                       <TableCell className="font-medium">{fe.name}</TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {fe.username}
-                      </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         {(fe as FEPortalFE & { primaryDeviceId?: string })
                           .primaryDeviceId || "—"}
