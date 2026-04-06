@@ -2361,6 +2361,7 @@ function AdminFELocationsSection() {
 
 export function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("overview");
+  const { actor } = useActor();
   const { data: demoBookings, refetch: refetchBookings } =
     useGetAllDemoBookings();
 
@@ -2526,21 +2527,73 @@ export function AdminDashboard() {
   };
 
   // ─── Enrollment Leads Handlers ───────────────────────────────────────────────
-  const handleApproveLead = (leadId: string) => {
+  const handleApproveLead = async (leadId: string) => {
+    // Backend leads have numeric string IDs; localStorage leads have uuid-style IDs
+    const isBackendLead = /^\d+$/.test(leadId);
+    if (isBackendLead && actor) {
+      const booking = (demoBookings ?? []).find(
+        (b) => b.bookingId.toString() === leadId,
+      );
+      if (booking) {
+        try {
+          await actor.updateDemoBooking({ ...booking, status: "Approved" });
+          await refetchBookings();
+          toast.success("Lead approved!");
+          return;
+        } catch {
+          toast.error("Failed to approve lead. Please try again.");
+          return;
+        }
+      }
+    }
     approveLead(leadId);
     refreshData();
     toast.success("Lead approved and commission credited!");
   };
 
-  const handleRejectLead = (leadId: string) => {
+  const handleRejectLead = async (leadId: string) => {
     const note = window.prompt("Reason for rejection (optional):");
     if (note === null) return; // cancelled
+    const isBackendLead = /^\d+$/.test(leadId);
+    if (isBackendLead && actor) {
+      const booking = (demoBookings ?? []).find(
+        (b) => b.bookingId.toString() === leadId,
+      );
+      if (booking) {
+        try {
+          await actor.updateDemoBooking({ ...booking, status: "Rejected" });
+          await refetchBookings();
+          toast.success("Lead rejected.");
+          return;
+        } catch {
+          toast.error("Failed to reject lead. Please try again.");
+          return;
+        }
+      }
+    }
     rejectLead(leadId);
     refreshData();
     toast.success("Lead rejected.");
   };
 
-  const handleMarkPayment = (leadId: string) => {
+  const handleMarkPayment = async (leadId: string) => {
+    const isBackendLead = /^\d+$/.test(leadId);
+    if (isBackendLead && actor) {
+      const booking = (demoBookings ?? []).find(
+        (b) => b.bookingId.toString() === leadId,
+      );
+      if (booking) {
+        try {
+          await actor.updateDemoBooking({ ...booking, status: "Approved" });
+          await refetchBookings();
+          toast.success("Payment marked as received.");
+          return;
+        } catch {
+          toast.error("Failed to update payment status. Please try again.");
+          return;
+        }
+      }
+    }
     updateLead(leadId, { paymentStatus: "Received" });
     refreshData();
     toast.success("Payment marked as received.");
@@ -2736,10 +2789,10 @@ export function AdminDashboard() {
             cityVillage: b.cityVillage,
             referralCode: "—",
             feAccountId: feId,
-            status: (b.status === "New"
-              ? "Pending"
-              : b.status === "Approved"
-                ? "Approved"
+            status: (b.status === "Approved"
+              ? "Approved"
+              : b.status === "Rejected"
+                ? "Rejected"
                 : "Pending") as import("../../utils/referralStore").LeadStatus,
             paymentStatus: "Unpaid",
             commissionAmount: 0,
@@ -3365,6 +3418,7 @@ export function AdminDashboard() {
                         <TableHead>Enrollments</TableHead>
                         <TableHead>Bonus</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Internet Identity</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -3433,6 +3487,34 @@ export function AdminDashboard() {
                                 <StatusBadge
                                   status={acc.isActive ? "Active" : "Inactive"}
                                 />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {acc.internetIdentityPrincipal ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                                  style={{
+                                    background: "oklch(0.93 0.08 165)",
+                                    color: "oklch(0.35 0.14 165)",
+                                  }}
+                                  title={acc.internetIdentityPrincipal}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                                  Linked (
+                                  {acc.internetIdentityPrincipal.slice(0, 8)}
+                                  ...)
+                                </span>
+                              ) : (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                                  style={{
+                                    background: "oklch(0.94 0.01 255)",
+                                    color: "oklch(0.55 0.03 255)",
+                                  }}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block" />
+                                  Not linked
+                                </span>
                               )}
                             </TableCell>
                             <TableCell>

@@ -48,6 +48,7 @@ import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { StatsCard } from "../../components/dashboard/StatsCard";
 import { useActor } from "../../hooks/useActor";
+import { useInternetIdentity } from "../../hooks/useInternetIdentity";
 import {
   useCreateDemoBooking,
   useCreateReferral,
@@ -69,6 +70,7 @@ import {
   saveLead,
   saveMagazineOrder,
   saveWithdrawal,
+  updateFEAccount,
 } from "../../utils/referralStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -291,6 +293,7 @@ export function FieldExecDashboard() {
   const createReferral = useCreateReferral();
   const createDemoBooking = useCreateDemoBooking();
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const pendingBackendSync = useRef<EnrollmentLead[]>([]);
   const pendingGpsSync = useRef<
     Array<{
@@ -314,6 +317,19 @@ export function FieldExecDashboard() {
     refreshData(acc);
     setAllFEAccounts(getFEAccounts());
   }, []);
+
+  // ─── Store Internet Identity principal on the FE account ─────────────────
+  useEffect(() => {
+    if (!identity) return;
+    const acc = getFEByCode(REFERRAL_CODE);
+    if (!acc) return;
+    const principal = identity.getPrincipal().toText();
+    if (acc.internetIdentityPrincipal === principal) return;
+    updateFEAccount(acc.feAccountId, { internetIdentityPrincipal: principal });
+    setFeAccount((prev) =>
+      prev ? { ...prev, internetIdentityPrincipal: principal } : prev,
+    );
+  }, [identity]);
 
   // ─── Flush pending enrollments to backend when actor becomes available ─────
   useEffect(() => {

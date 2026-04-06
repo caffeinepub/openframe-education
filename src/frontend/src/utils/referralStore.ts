@@ -39,6 +39,7 @@ export interface FieldExecAccount {
   bonusEarned: number;
   isActive: boolean;
   createdAt: number;
+  internetIdentityPrincipal?: string; // set when FE logs in via Internet Identity
 }
 
 export interface WithdrawalRequest {
